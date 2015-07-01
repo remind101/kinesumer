@@ -1,53 +1,53 @@
 package kinesumer
 
 import (
-	"log"
-	"os"
+	"errors"
 
 	"github.com/aws/aws-sdk-go/service/kinesis"
 	"github.com/remind101/pkg/logger"
 )
 
+type Unit struct{}
+
 type Kinesumer struct {
-	opt      *KinesumerOptions
-	kinesis  *kinesis.Kinesis
-	C        chan *ShardState
-	stop     chan struct{}
-	stopped  chan struct{}
-	nRunning int
+	Kinesis   *kinesis.Kinesis
+	StateSync ShardStateSync
+	Logger    logger.Logger
+	Stream    *string
+	opt       *KinesumerOptions
+	Records   chan *KinesisRecord
+	stop      chan Unit
+	stopped   chan Unit
+	nRunning  int
 }
 
 type KinesumerOptions struct {
-	Kinesis             *kinesis.Kinesis
-	StateSync           ShardStateSync
-	Logger              logger.Logger
-	Stream              *string
 	ListStreamsLimit    int64
 	DescribeStreamLimit int64
 	GetRecordsLimit     int64
 }
 
-func DefaultKinesumerOptions() *KinesumerOptions {
-	return &KinesumerOptions{
-		StateSync:           NewEmptyStateSync(),
-		Logger:              logger.New(log.New(os.Stdout, "", 0)),
-		ListStreamsLimit:    1000,
-		DescribeStreamLimit: 10000,
-		GetRecordsLimit:     50,
-	}
+var DefaultKinesumerOptions = KinesumerOptions{
+	ListStreamsLimit:    1000,
+	DescribeStreamLimit: 10000,
+	GetRecordsLimit:     50,
 }
 
-func NewKinesumer(opt *KinesumerOptions) (*Kinesumer, error) {
+func NewKinesumer(kinesis *kinesis.Kinesis, stateSync ShardStateSync, logger logger.Logger,
+	stream string, opt KinesumerOptions) (*Kinesumer, error) {
 	return &Kinesumer{
-		opt:     opt,
-		kinesis: opt.Kinesis,
-		C:       make(chan *ShardState, opt.GetRecordsLimit),
+		Kinesis:   kinesis,
+		StateSync: stateSync,
+		Logger:    logger,
+		Stream:    &stream,
+		opt:       &opt,
+		Records:   make(chan *KinesisRecord, opt.GetRecordsLimit),
 	}, nil
 }
 
 func (k *Kinesumer) GetStreams() (streams []*string) {
 	streams = make([]*string, 0)
-	k.kinesis.ListStreamsPages(&kinesis.ListStreamsInput{
+	k.Kinesis.ListStreamsPages(&kinesis.ListStreamsInput{
 		Limit: &k.opt.ListStreamsLimit,
 	}, func(sts *kinesis.ListStreamsOutput, _ bool) bool {
 		streams = append(streams, sts.StreamNames...)
@@ -57,29 +57,24 @@ func (k *Kinesumer) GetStreams() (streams []*string) {
 }
 
 func (k *Kinesumer) StreamExists() (found bool) {
-	k.kinesis.ListStreamsPages(&kinesis.ListStreamsInput{
-		Limit: &k.opt.ListStreamsLimit,
-	}, func(streams *kinesis.ListStreamsOutput, _ bool) bool {
-		for _, stream := range streams.StreamNames {
-			if *stream == *k.opt.Stream {
-				found = true
-				return false
-			}
+	for _, stream := range k.GetStreams() {
+		if *stream == *k.Stream {
+			return true
 		}
-		return true
-	})
+	}
 	return
 }
 
-func (k *Kinesumer) GetShards() (shards []*kinesis.Shard) {
+func (k *Kinesumer) GetShards() (shards []*kinesis.Shard, err error) {
 	shards = make([]*kinesis.Shard, 0)
-	k.kinesis.DescribeStreamPages(&kinesis.DescribeStreamInput{
+	k.Kinesis.DescribeStreamPages(&kinesis.DescribeStreamInput{
 		Limit:      &k.opt.DescribeStreamLimit,
-		StreamName: k.opt.Stream,
+		StreamName: k.Stream,
 	}, func(desc *kinesis.DescribeStreamOutput, _ bool) bool {
 		if *desc.StreamDescription.StreamStatus == "DELETING" {
-			k.opt.Logger.Crit("Stream is being deleted", "stream", *k.opt.Stream)
-			panic("Stream is being deleted")
+			k.Logger.Crit("Stream is being deleted", "stream", *k.Stream)
+			err = errors.New("Stream is being deleted")
+			return false
 		}
 		shards = append(shards, desc.StreamDescription.Shards...)
 		return true
@@ -87,42 +82,50 @@ func (k *Kinesumer) GetShards() (shards []*kinesis.Shard) {
 	return
 }
 
-func (k *Kinesumer) Begin() {
+func (k *Kinesumer) Begin() error {
 	if !k.StreamExists() {
-		k.opt.Logger.Crit("Stream not found", "stream", *k.opt.Stream)
-		panic("Stream not found")
+		k.Logger.Crit("Stream not found", "stream", *k.Stream)
+		return errors.New("Stream not found")
 	}
 
-	k.opt.StateSync.begin()
+	err := k.StateSync.Begin()
+	if err != nil {
+		return err
+	}
 
-	shards := k.GetShards()
+	shards, err := k.GetShards()
+	if err != nil {
+		return err
+	}
 	k.nRunning = len(shards)
-	k.stop = make(chan struct{}, k.nRunning)
-	k.stopped = make(chan struct{}, k.nRunning)
+	k.stop = make(chan Unit, k.nRunning)
+	k.stopped = make(chan Unit, k.nRunning)
 	for _, shard := range shards {
 		worker := &ShardWorker{
-			kinesis:         k.kinesis,
-			logger:          k.opt.Logger,
+			kinesis:         k.Kinesis,
+			logger:          k.Logger,
 			shard:           shard,
-			stateSync:       k.opt.StateSync,
-			stream:          k.opt.Stream,
-			stop:            &k.stop,
-			stopped:         &k.stopped,
-			c:               &k.C,
+			stateSync:       k.StateSync,
+			stream:          k.Stream,
+			stop:            k.stop,
+			stopped:         k.stopped,
+			c:               k.Records,
 			GetRecordsLimit: k.opt.GetRecordsLimit,
 		}
 		go worker.RunWorker()
 	}
+
+	return nil
 }
 
 func (k *Kinesumer) End() {
-	k.opt.StateSync.end()
+	k.StateSync.End()
 
 	for k.nRunning > 0 {
 		select {
 		case <-k.stopped:
 			k.nRunning--
-		case k.stop <- struct{}{}:
+		case k.stop <- Unit{}:
 		}
 	}
 }

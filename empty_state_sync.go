@@ -5,34 +5,37 @@ import (
 )
 
 type EmptyStateSync struct {
-	c  *chan *ShardState
+	c  chan *KinesisRecord
 	wg sync.WaitGroup
 }
 
 func NewEmptyStateSync() *EmptyStateSync {
-	c := make(chan *ShardState)
 	return &EmptyStateSync{
-		c: &c,
+		c: make(chan *KinesisRecord),
 	}
 }
 
-func (e *EmptyStateSync) doneC() *chan *ShardState {
+func (e *EmptyStateSync) DoneC() chan *KinesisRecord {
 	return e.c
 }
 
-func (e *EmptyStateSync) begin() {
+func (e *EmptyStateSync) Begin() error {
 	e.wg.Add(1)
 	go func() {
-		for range *e.c {
+		for range e.c {
 		}
 		e.wg.Done()
 	}()
-}
-
-func (e *EmptyStateSync) end() {
-	close(*e.c)
-}
-
-func (e *EmptyStateSync) getStartSequence(*string) *string {
 	return nil
+}
+
+func (e *EmptyStateSync) End() {
+	close(e.c)
+}
+
+func (e *EmptyStateSync) GetStartSequence(*string) *string {
+	return nil
+}
+
+func (e *EmptyStateSync) Sync() {
 }

@@ -9,12 +9,12 @@ import (
 )
 
 type RedisStateSync struct {
-	heads    map[string]*string
-	c        *chan *ShardState
+	heads    map[string]string
+	c        chan *KinesisRecord
 	mut      sync.Mutex
 	pool     *redis.Pool
 	redisKey string
-	ticker   *<-chan time.Time
+	ticker   <-chan time.Time
 	logger   logger.Logger
 	wg       sync.WaitGroup
 }
@@ -30,10 +30,9 @@ func NewRedisStateSync(opt *RedisStateSyncOptions) (*RedisStateSync, error) {
 	if err != nil {
 		return nil, err
 	}
-	c := make(chan *ShardState)
 	return &RedisStateSync{
-		heads:    make(map[string]*string),
-		c:        &c,
+		heads:    make(map[string]string),
+		c:        make(chan *KinesisRecord),
 		mut:      sync.Mutex{},
 		pool:     redisPool,
 		redisKey: opt.RedisKey,
@@ -42,65 +41,72 @@ func NewRedisStateSync(opt *RedisStateSyncOptions) (*RedisStateSync, error) {
 	}, nil
 }
 
-func (r *RedisStateSync) doneC() *chan *ShardState {
+func (r *RedisStateSync) DoneC() chan *KinesisRecord {
 	return r.c
 }
 
-func (r *RedisStateSync) writeOne(sequence, shardID *string) {
+func (r *RedisStateSync) syncOne(shardID, sequence *string) {
 	conn := r.pool.Get()
 	defer conn.Close()
 	_, err := conn.Do("HSET", r.redisKey, *shardID, *sequence)
 	if err != nil {
-		r.logger.Error("Failed to write sequence number", "shard", *shardID,
+		r.logger.Error("Failed to sync sequence number", "shard", *shardID,
 			"sequence", *sequence)
 	}
 }
 
-func (r *RedisStateSync) writeAll() {
+func (r *RedisStateSync) Sync() {
 	r.logger.Info("Writing sequence numbers")
 	r.mut.Lock()
 	defer r.mut.Unlock()
 	for id, seq := range r.heads {
-		r.writeOne(&id, seq)
+		r.syncOne(&id, &seq)
 	}
 }
 
-func (r *RedisStateSync) begin() {
-	r.wg.Add(1)
-	go func() {
-	loop:
-		for {
-			select {
-			case <-*r.ticker:
-				r.writeAll()
-			case state, ok := <-*r.c:
-				if !ok {
-					break loop
-				}
-				r.mut.Lock()
-				r.heads[*state.ShardID] = state.Record.SequenceNumber
-				r.mut.Unlock()
+func (r *RedisStateSync) RunShardSync() {
+loop:
+	for {
+		select {
+		case <-r.ticker:
+			r.Sync()
+		case state, ok := <-r.c:
+			if !ok {
+				break loop
 			}
+			r.mut.Lock()
+			r.heads[*state.ShardID] = *state.Record.SequenceNumber
+			r.mut.Unlock()
 		}
-		r.writeAll()
-		r.wg.Done()
-	}()
+	}
+	r.Sync()
+	r.wg.Done()
 }
 
-func (r *RedisStateSync) end() {
-	close(*r.c)
+func (r *RedisStateSync) Begin() error {
+	conn := r.pool.Get()
+	defer conn.Close()
+	res, err := conn.Do("HGETALL", r.redisKey)
+	r.heads, err = redis.StringMap(res, err)
+	if err != nil {
+		return err
+	}
+
+	r.wg.Add(1)
+	go r.RunShardSync()
+	return nil
+}
+
+func (r *RedisStateSync) End() {
+	close(r.c)
 	r.wg.Wait()
 }
 
-func (r *RedisStateSync) getStartSequence(shardID *string) *string {
-	conn := r.pool.Get()
-	defer conn.Close()
-	resp, err := conn.Do("HGET", r.redisKey, *shardID)
-
-	tmp, err := redis.String(resp, err)
-	if err != nil {
-		r.logger.Warn("Error when fetching starting sequence number", "shard", *shardID, "error", err)
+func (r *RedisStateSync) GetStartSequence(shardID *string) *string {
+	val, ok := r.heads[*shardID]
+	if ok {
+		return &val
+	} else {
 		return nil
 	}
-	return &tmp
 }

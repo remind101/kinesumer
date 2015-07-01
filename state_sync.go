@@ -7,24 +7,25 @@ import (
 	"github.com/remind101/pkg/logger"
 )
 
-type ShardState struct {
+type KinesisRecord struct {
 	Record  *kinesis.Record
 	ShardID *string
-	sync    ShardStateSync
+	sync    chan *KinesisRecord
 }
 
-func (s *ShardState) Done() {
-	*s.sync.doneC() <- s
+func (s *KinesisRecord) Done() {
+	s.sync <- s
 }
 
 type ShardStateSync interface {
-	doneC() *chan *ShardState
-	begin()
-	end()
-	getStartSequence(shardID *string) *string
+	DoneC() chan *KinesisRecord
+	Begin() error
+	End()
+	GetStartSequence(shardID *string) *string
+	Sync()
 }
 
 type ShardStateSyncOptions struct {
 	Logger logger.Logger
-	Ticker *<-chan time.Time
+	Ticker <-chan time.Time
 }
