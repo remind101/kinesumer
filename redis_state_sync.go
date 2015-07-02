@@ -45,22 +45,13 @@ func (r *RedisStateSync) DoneC() chan *KinesisRecord {
 	return r.c
 }
 
-func (r *RedisStateSync) syncOne(shardID, sequence *string) {
-	conn := r.pool.Get()
-	defer conn.Close()
-	_, err := conn.Do("HSET", r.redisKey, *shardID, *sequence)
-	if err != nil {
-		r.logger.Error("Failed to sync sequence number", "shard", *shardID,
-			"sequence", *sequence)
-	}
-}
-
 func (r *RedisStateSync) Sync() {
 	r.logger.Info("Writing sequence numbers")
 	r.mut.Lock()
 	defer r.mut.Unlock()
-	for id, seq := range r.heads {
-		r.syncOne(&id, &seq)
+	conn := r.pool.Get()
+	if _, err := conn.Do("HMSET", redis.Args{r.redisKey}.AddFlat(r.heads)...); err != nil {
+		r.logger.Error("Failed to sync sequence numbers", "error", err)
 	}
 }
 
