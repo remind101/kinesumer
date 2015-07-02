@@ -10,11 +10,11 @@ import (
 type KinesisRecord struct {
 	Record  *kinesis.Record
 	ShardID *string
-	sync    chan *KinesisRecord
+	Sync    chan<- *KinesisRecord
 }
 
 func (s *KinesisRecord) Done() {
-	s.sync <- s
+	s.Sync <- s
 }
 
 type ShardStateSync interface {

@@ -7,7 +7,15 @@ import (
 	"github.com/remind101/pkg/logger"
 )
 
+// Unit has only one possible value, Unit{}, and is used to make signal channels to tell the workers
+// when to stop
 type Unit struct{}
+
+type KinesumerAPI interface {
+	Begin() (err error)
+	End()
+	Records() <-chan *KinesisRecord
+}
 
 type Kinesumer struct {
 	Kinesis   KinesisAPI
@@ -15,7 +23,7 @@ type Kinesumer struct {
 	Logger    logger.Logger
 	Stream    *string
 	opt       *KinesumerOptions
-	Records   chan *KinesisRecord
+	records   chan *KinesisRecord
 	stop      chan Unit
 	stopped   chan Unit
 	nRunning  int
@@ -41,7 +49,7 @@ func NewKinesumer(kinesis KinesisAPI, stateSync ShardStateSync, logger logger.Lo
 		Logger:    logger,
 		Stream:    &stream,
 		opt:       &opt,
-		Records:   make(chan *KinesisRecord, opt.GetRecordsLimit),
+		records:   make(chan *KinesisRecord, opt.GetRecordsLimit),
 	}, nil
 }
 
@@ -117,7 +125,7 @@ func (k *Kinesumer) Begin() (err error) {
 			stream:          k.Stream,
 			stop:            k.stop,
 			stopped:         k.stopped,
-			c:               k.Records,
+			c:               k.records,
 			GetRecordsLimit: k.opt.GetRecordsLimit,
 		}
 		go worker.RunWorker()
@@ -136,4 +144,8 @@ func (k *Kinesumer) End() {
 		case k.stop <- Unit{}:
 		}
 	}
+}
+
+func (k *Kinesumer) Records() <-chan *KinesisRecord {
+	return k.records
 }

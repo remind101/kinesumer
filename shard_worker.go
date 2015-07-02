@@ -55,10 +55,11 @@ func (s *ShardWorker) GetRecords(it *string) ([]*kinesis.Record, *string, int64,
 	if err != nil {
 		return nil, nil, 0, err
 	}
+	s.logger.Info("Fetched records", "shard", *s.shard.ShardID, "measure#lag", *resp.MillisBehindLatest)
 	return resp.Records, resp.NextShardIterator, *resp.MillisBehindLatest, nil
 }
 
-func (s *ShardWorker) GetRecordsAndProcess(it, sequence *string) (bool, *string) {
+func (s *ShardWorker) GetRecordsAndProcess(it, sequence *string) (bool, *string, *string) {
 	records, nextIt, lag, err := s.GetRecords(it)
 	if err != nil || len(records) == 0 {
 		if err == nil {
@@ -71,7 +72,7 @@ func (s *ShardWorker) GetRecordsAndProcess(it, sequence *string) (bool, *string)
 			select {
 			case <-time.NewTimer(30 * time.Second).C:
 			case <-s.stop:
-				return true, sequence
+				return true, nil, sequence
 			}
 		}
 	} else {
@@ -79,13 +80,12 @@ func (s *ShardWorker) GetRecordsAndProcess(it, sequence *string) (bool, *string)
 			s.c <- &KinesisRecord{
 				Record:  rec,
 				ShardID: s.shard.ShardID,
-				sync:    s.stateSync.DoneC(),
+				Sync:    s.stateSync.DoneC(),
 			}
 		}
 		sequence = records[len(records)-1].SequenceNumber
 	}
-	it = nextIt
-	return false, sequence
+	return false, nextIt, sequence
 }
 
 func (s *ShardWorker) RunWorker() {
@@ -115,9 +115,10 @@ loop:
 		case <-s.stop:
 			break loop
 		default:
-			if brk, seq := s.GetRecordsAndProcess(it, sequence); brk {
+			if brk, nextIt, seq := s.GetRecordsAndProcess(it, sequence); brk {
 				break loop
 			} else {
+				it = nextIt
 				sequence = seq
 			}
 		}

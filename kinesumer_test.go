@@ -65,7 +65,7 @@ func TestKinesumerGetShards(t *testing.T) {
 
 func TestKinesumerBeginEnd(t *testing.T) {
 	k, kin, sssm := makeTestKinesumer(t)
-	var awsNoErr awserr.Error = nil
+	awsNoErr := awserr.Error(nil)
 	stream := "c"
 	k.Stream = &stream
 	kin.On("ListStreamsPages", mock.Anything, mock.Anything).Return(awsNoErr)
@@ -91,7 +91,7 @@ func TestKinesumerBeginEnd(t *testing.T) {
 	kin.On("GetShardIterator", mock.Anything).Return(&kinesis.GetShardIteratorOutput{
 		ShardIterator: &iter,
 	}, awsNoErr)
-	var _0 int64 = 0
+	_0 := int64(0)
 	kin.On("GetRecords", mock.Anything).Return(&kinesis.GetRecordsOutput{
 		MillisBehindLatest: &_0,
 		NextShardIterator:  &iter,
