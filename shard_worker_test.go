@@ -75,8 +75,9 @@ func TestShardWorkerTryGetShardIterator(t *testing.T) {
 
 	seq := "1234"
 	kin.On("GetShardIterator", mock.Anything).Return(nil, awserr.New("bad", "bad", errors.New("bad")))
-	res := s.TryGetShardIterator("TYPE", &seq)
-	assert.Nil(t, res)
+	assert.Panics(t, func() {
+		s.TryGetShardIterator("TYPE", &seq)
+	})
 }
 
 func TestShardWorkerGetRecords(t *testing.T) {

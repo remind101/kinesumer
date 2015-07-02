@@ -40,9 +40,8 @@ func (s *ShardWorker) TryGetShardIterator(iteratorType string, sequence *string)
 		if awsErr, ok := err.(awserr.Error); ok {
 			s.logger.Crit("Failed to get shard iterator", "shard", *s.shard.ShardID,
 				"sequence", *sequence, "error", awsErr)
-		} else {
-			panic(err)
 		}
+		panic(err)
 	}
 	return it
 }
@@ -70,7 +69,7 @@ func (s *ShardWorker) GetRecordsAndProcess(it, sequence *string) (bool, *string,
 		}
 		if lag < 30000 /* milliseconds */ {
 			select {
-			case <-time.NewTimer(30 * time.Second).C:
+			case <-time.NewTimer(5 * time.Second).C:
 			case <-s.stop:
 				return true, nil, sequence
 			}
