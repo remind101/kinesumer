@@ -17,6 +17,7 @@ type RedisStateSync struct {
 	ticker   <-chan time.Time
 	logger   logger.Logger
 	wg       sync.WaitGroup
+	modified bool
 }
 
 type RedisStateSyncOptions struct {
@@ -38,6 +39,7 @@ func NewRedisStateSync(opt *RedisStateSyncOptions) (*RedisStateSync, error) {
 		redisKey: opt.RedisKey,
 		ticker:   opt.Ticker,
 		logger:   opt.Logger,
+		modified: true,
 	}, nil
 }
 
@@ -50,8 +52,13 @@ func (r *RedisStateSync) Sync() {
 	r.mut.Lock()
 	defer r.mut.Unlock()
 	conn := r.pool.Get()
-	if _, err := conn.Do("HMSET", redis.Args{r.redisKey}.AddFlat(r.heads)...); err != nil {
-		r.logger.Error("Failed to sync sequence numbers", "error", err)
+	if len(r.heads) > 0 && r.modified {
+		if _, err := conn.Do("HMSET", redis.Args{r.redisKey}.AddFlat(r.heads)...); err != nil {
+			r.logger.Error("Failed to sync sequence numbers", "error", err)
+		}
+		r.modified = false
+	} else {
+		r.logger.Info("No sequence numbers to write")
 	}
 }
 
@@ -67,6 +74,7 @@ loop:
 			}
 			r.mut.Lock()
 			r.heads[*state.ShardID] = *state.Record.SequenceNumber
+			r.modified = true
 			r.mut.Unlock()
 		}
 	}
