@@ -3,7 +3,7 @@ package kinesumer
 import (
 	"bytes"
 	"log"
-	//"strings"
+	"strings"
 	"testing"
 	"time"
 
@@ -13,47 +13,32 @@ import (
 
 var sequenceKey = "pusherman360.sequence.testing"
 
-func makeRedisStateSync(url string) (*bytes.Buffer, *RedisStateSync, error) {
+func makeRedisStateSync() (*bytes.Buffer, *RedisStateSync, error) {
 	buf := new(bytes.Buffer)
 	r, err := NewRedisStateSync(&RedisStateSyncOptions{
 		ShardStateSyncOptions: ShardStateSyncOptions{
 			Logger: logger.New(log.New(buf, "", 0)),
 			Ticker: time.NewTicker(time.Nanosecond).C,
 		},
-		RedisURL: url,
+		RedisURL: "redis://127.0.0.1:6379",
 		RedisKey: sequenceKey,
 	})
 	return buf, r, err
 }
 
 func makeRedisStateSyncWithSamples() (*bytes.Buffer, *RedisStateSync) {
-	_, r, _ := makeRedisStateSync("redis://127.0.0.1:6379")
+	_, r, _ := makeRedisStateSync()
 	conn := r.pool.Get()
 	defer conn.Close()
 	conn.Do("DEL", sequenceKey)
 	conn.Do("HSET", sequenceKey, "shard1", "1000")
 	conn.Do("HSET", sequenceKey, "shard2", "2000")
-	buf, r, _ := makeRedisStateSync("redis://127.0.0.1:6379")
+	buf, r, _ := makeRedisStateSync()
 	return buf, r
 }
 
-func TestRedisBadLogin(t *testing.T) {
-	_, r, err := makeRedisStateSync("redis://u:p@classchirp.com")
-	if err == nil {
-		// This currently passes but I'm not sure why
-		//t.Error("Redis login should fail")
-	}
-
-	conn := r.pool.Get()
-	defer conn.Close()
-	_, err = conn.Do("ECHO", "hey")
-	if err == nil {
-		t.Error("Redis command should fail")
-	}
-}
-
 func TestRedisGoodLogin(t *testing.T) {
-	_, r, err := makeRedisStateSync("redis://127.0.0.1:6379")
+	_, r, err := makeRedisStateSync()
 	if err != nil {
 		t.Error("Failed to connect to redis at localhost:6379")
 	}
@@ -68,30 +53,40 @@ func TestRedisGoodLogin(t *testing.T) {
 	}
 }
 
-/*
+func TestRedisBeginEnd(t *testing.T) {
+	_, r := makeRedisStateSyncWithSamples()
+	err := r.Begin()
+	if err != nil {
+		t.Error(err)
+	}
+	r.End()
+}
+
 func TestGetStartSequence(t *testing.T) {
-	buf, r := makeRedisStateSyncWithSamples()
+	_, r := makeRedisStateSyncWithSamples()
+	_ = r.Begin()
+	r.End()
 	shard1 := "shard1"
 	seq := r.GetStartSequence(&shard1)
 	if seq == nil || *seq != "1000" {
 		t.Error("Expected nonempty sequence number")
 	}
-	if buf.Len() != 0 {
-		t.Error("Expected logger output to be empty")
-	}
 }
 
 func TestWriteAll(t *testing.T) {
 	buf, r := makeRedisStateSyncWithSamples()
+	r.Begin()
 	r.heads["shard1"] = "1001"
 	r.heads["shard2"] = "2001"
 	r.Sync()
+	r.End()
 	if !strings.Contains(buf.String(), "Writing sequence numbers") {
 		t.Error("Expected logger entry")
 	}
-	_, r, _ = makeRedisStateSync("redis://127.0.0.1:6379")
+	_, r, _ = makeRedisStateSync()
+	r.Begin()
+	r.End()
 	if r.heads["shard1"] != "1001" {
 		t.Error("Expected sequence number to be written")
 	}
 }
-*/

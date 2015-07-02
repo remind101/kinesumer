@@ -10,7 +10,7 @@ import (
 type Unit struct{}
 
 type Kinesumer struct {
-	Kinesis   *kinesis.Kinesis
+	Kinesis   KinesisAPI
 	StateSync ShardStateSync
 	Logger    logger.Logger
 	Stream    *string
@@ -33,7 +33,7 @@ var DefaultKinesumerOptions = KinesumerOptions{
 	GetRecordsLimit:     50,
 }
 
-func NewKinesumer(kinesis *kinesis.Kinesis, stateSync ShardStateSync, logger logger.Logger,
+func NewKinesumer(kinesis KinesisAPI, stateSync ShardStateSync, logger logger.Logger,
 	stream string, opt KinesumerOptions) (*Kinesumer, error) {
 	return &Kinesumer{
 		Kinesis:   kinesis,
@@ -45,9 +45,9 @@ func NewKinesumer(kinesis *kinesis.Kinesis, stateSync ShardStateSync, logger log
 	}, nil
 }
 
-func (k *Kinesumer) GetStreams() (streams []*string) {
+func (k *Kinesumer) GetStreams() (streams []*string, err error) {
 	streams = make([]*string, 0)
-	k.Kinesis.ListStreamsPages(&kinesis.ListStreamsInput{
+	err = k.Kinesis.ListStreamsPages(&kinesis.ListStreamsInput{
 		Limit: &k.opt.ListStreamsLimit,
 	}, func(sts *kinesis.ListStreamsOutput, _ bool) bool {
 		streams = append(streams, sts.StreamNames...)
@@ -56,10 +56,14 @@ func (k *Kinesumer) GetStreams() (streams []*string) {
 	return
 }
 
-func (k *Kinesumer) StreamExists() (found bool) {
-	for _, stream := range k.GetStreams() {
+func (k *Kinesumer) StreamExists() (found bool, err error) {
+	streams, err := k.GetStreams()
+	if err != nil {
+		return
+	}
+	for _, stream := range streams {
 		if *stream == *k.Stream {
-			return true
+			return true, nil
 		}
 	}
 	return
@@ -67,7 +71,7 @@ func (k *Kinesumer) StreamExists() (found bool) {
 
 func (k *Kinesumer) GetShards() (shards []*kinesis.Shard, err error) {
 	shards = make([]*kinesis.Shard, 0)
-	k.Kinesis.DescribeStreamPages(&kinesis.DescribeStreamInput{
+	err = k.Kinesis.DescribeStreamPages(&kinesis.DescribeStreamInput{
 		Limit:      &k.opt.DescribeStreamLimit,
 		StreamName: k.Stream,
 	}, func(desc *kinesis.DescribeStreamOutput, _ bool) bool {
@@ -82,20 +86,24 @@ func (k *Kinesumer) GetShards() (shards []*kinesis.Shard, err error) {
 	return
 }
 
-func (k *Kinesumer) Begin() error {
-	if !k.StreamExists() {
+func (k *Kinesumer) Begin() (err error) {
+	found, err := k.StreamExists()
+	if err != nil {
+		return
+	}
+	if !found {
 		k.Logger.Crit("Stream not found", "stream", *k.Stream)
 		return errors.New("Stream not found")
 	}
 
-	err := k.StateSync.Begin()
+	err = k.StateSync.Begin()
 	if err != nil {
-		return err
+		return
 	}
 
 	shards, err := k.GetShards()
 	if err != nil {
-		return err
+		return
 	}
 	k.nRunning = len(shards)
 	k.stop = make(chan Unit, k.nRunning)
@@ -115,7 +123,7 @@ func (k *Kinesumer) Begin() error {
 		go worker.RunWorker()
 	}
 
-	return nil
+	return
 }
 
 func (k *Kinesumer) End() {

@@ -9,7 +9,7 @@ import (
 )
 
 type ShardWorker struct {
-	kinesis         *kinesis.Kinesis
+	kinesis         KinesisAPI
 	logger          logger.Logger
 	shard           *kinesis.Shard
 	stateSync       ShardStateSync
@@ -36,11 +36,13 @@ func (s *ShardWorker) GetShardIterator(iteratorType string, sequence *string) (*
 
 func (s *ShardWorker) TryGetShardIterator(iteratorType string, sequence *string) *string {
 	it, err := s.GetShardIterator(iteratorType, sequence)
-	if awsErr, ok := err.(awserr.Error); ok {
-		s.logger.Crit("Failed to get shard iterator", "shard", *s.shard.ShardID,
-			"sequence", *sequence, "error", awsErr)
-	} else {
-		panic(err)
+	if err != nil {
+		if awsErr, ok := err.(awserr.Error); ok {
+			s.logger.Crit("Failed to get shard iterator", "shard", *s.shard.ShardID,
+				"sequence", *sequence, "error", awsErr)
+		} else {
+			panic(err)
+		}
 	}
 	return it
 }
