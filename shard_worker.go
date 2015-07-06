@@ -54,7 +54,8 @@ func (s *ShardWorker) GetRecords(it *string) ([]*kinesis.Record, *string, int64,
 	if err != nil {
 		return nil, nil, 0, err
 	}
-	s.logger.Info("Fetched records", "shard", *s.shard.ShardID, "measure#lag", *resp.MillisBehindLatest)
+	s.logger.Info("Fetched records", "shard", *s.shard.ShardID, "measure#kinesis."+*s.stream+".lag",
+		*resp.MillisBehindLatest)
 	return resp.Records, resp.NextShardIterator, *resp.MillisBehindLatest, nil
 }
 
