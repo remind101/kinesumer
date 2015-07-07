@@ -49,7 +49,7 @@ func NewKinesumer(kinesis KinesisAPI, stateSync ShardStateSync, logger logger.Lo
 		Logger:    logger,
 		Stream:    &stream,
 		opt:       &opt,
-		records:   make(chan *KinesisRecord, opt.GetRecordsLimit),
+		records:   make(chan *KinesisRecord, opt.GetRecordsLimit*2+10),
 	}, nil
 }
 
