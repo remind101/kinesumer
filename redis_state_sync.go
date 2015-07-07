@@ -97,8 +97,11 @@ func (r *RedisStateSync) Begin() error {
 }
 
 func (r *RedisStateSync) End() {
+	r.logger.Info("Redis state sync stopping")
 	close(r.c)
 	r.wg.Wait()
+	r.logger.Info("Redis state sync stopped")
+
 }
 
 func (r *RedisStateSync) GetStartSequence(shardID *string) *string {

@@ -135,8 +135,6 @@ func (k *Kinesumer) Begin() (err error) {
 }
 
 func (k *Kinesumer) End() {
-	k.StateSync.End()
-
 	for k.nRunning > 0 {
 		select {
 		case <-k.stopped:
@@ -144,6 +142,9 @@ func (k *Kinesumer) End() {
 		case k.stop <- Unit{}:
 		}
 	}
+	k.Logger.Info("All workers stopped")
+
+	k.StateSync.End()
 }
 
 func (k *Kinesumer) Records() <-chan *KinesisRecord {
