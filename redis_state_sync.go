@@ -51,8 +51,9 @@ func (r *RedisStateSync) Sync() {
 	r.logger.Info("Writing sequence numbers")
 	r.mut.Lock()
 	defer r.mut.Unlock()
-	conn := r.pool.Get()
 	if len(r.heads) > 0 && r.modified {
+		conn := r.pool.Get()
+		defer conn.Close()
 		if _, err := conn.Do("HMSET", redis.Args{r.redisKey}.AddFlat(r.heads)...); err != nil {
 			r.logger.Error("Failed to sync sequence numbers", "error", err)
 		}
