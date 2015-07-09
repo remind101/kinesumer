@@ -33,12 +33,14 @@ type KinesumerOptions struct {
 	ListStreamsLimit    int64
 	DescribeStreamLimit int64
 	GetRecordsLimit     int64
+	PollTime            int
 }
 
 var DefaultKinesumerOptions = KinesumerOptions{
 	ListStreamsLimit:    1000,
 	DescribeStreamLimit: 10000,
 	GetRecordsLimit:     50,
+	PollTime:            2000,
 }
 
 func NewKinesumer(kinesis KinesisAPI, stateSync ShardStateSync, logger logger.Logger,
@@ -123,6 +125,7 @@ func (k *Kinesumer) Begin() (err error) {
 			shard:           shard,
 			stateSync:       k.StateSync,
 			stream:          k.Stream,
+			pollTime:        k.opt.PollTime,
 			stop:            k.stop,
 			stopped:         k.stopped,
 			c:               k.records,

@@ -14,6 +14,7 @@ type ShardWorker struct {
 	shard           *kinesis.Shard
 	stateSync       ShardStateSync
 	stream          *string
+	pollTime        int
 	sequence        *string
 	stop            <-chan Unit
 	stopped         chan<- Unit
@@ -68,9 +69,12 @@ func (s *ShardWorker) GetRecordsAndProcess(it, sequence *string) (bool, *string,
 			s.logger.Error("GetRecords encountered an error", "shard", *s.shard.ShardID, "error", err)
 			nextIt = s.TryGetShardIterator("AFTER_SEQUENCE_NUMBER", sequence)
 		}
+		// GetRecords is not guaranteed to return records even if there are records to be read.
+		// However, if our lag time behind the shard head is less than 3 seconds then there's probably
+		// no records.
 		if lag < 30000 /* milliseconds */ {
 			select {
-			case <-time.NewTimer(5 * time.Second).C:
+			case <-time.NewTimer(time.Duration(s.pollTime) * time.Millisecond).C:
 			case <-s.stop:
 				return true, nil, sequence
 			}
