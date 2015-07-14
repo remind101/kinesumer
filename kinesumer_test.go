@@ -6,6 +6,7 @@ import (
 	"log"
 	"testing"
 
+	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/kinesis"
 	"github.com/remind101/pkg/logger"
@@ -42,8 +43,7 @@ func TestKinesumerGetStreams(t *testing.T) {
 
 func TestKinesumerStreamExists(t *testing.T) {
 	k, kin, _ := makeTestKinesumer(t)
-	stream := "c"
-	k.Stream = &stream
+	k.Stream = aws.String("c")
 	kin.On("ListStreamsPages", mock.Anything, mock.Anything).Return(nil)
 	e, err := k.StreamExists()
 	assert.Nil(t, err)
@@ -53,8 +53,7 @@ func TestKinesumerStreamExists(t *testing.T) {
 
 func TestKinesumerGetShards(t *testing.T) {
 	k, kin, _ := makeTestKinesumer(t)
-	stream := "c"
-	k.Stream = &stream
+	k.Stream = aws.String("c")
 	kin.On("DescribeStreamPages", mock.Anything, mock.Anything).Return(nil)
 	shards, err := k.GetShards()
 	assert.Nil(t, err)
@@ -84,17 +83,14 @@ func TestKinesumerBeginEnd(t *testing.T) {
 	assert.Error(t, err)
 
 	kin.On("DescribeStreamPages", mock.Anything, mock.Anything).Return(awsNoErr)
-	sequence := "0"
-	sssm.On("GetStartSequence", mock.Anything).Return(&sequence).Once()
+	sssm.On("GetStartSequence", mock.Anything).Return(aws.String("0")).Once()
 	sssm.On("GetStartSequence", mock.Anything).Return(nil)
-	iter := "AAAAA"
 	kin.On("GetShardIterator", mock.Anything).Return(&kinesis.GetShardIteratorOutput{
-		ShardIterator: &iter,
+		ShardIterator: aws.String("0"),
 	}, awsNoErr)
-	_0 := int64(0)
 	kin.On("GetRecords", mock.Anything).Return(&kinesis.GetRecordsOutput{
-		MillisBehindLatest: &_0,
-		NextShardIterator:  &iter,
+		MillisBehindLatest: aws.Long(0),
+		NextShardIterator:  aws.String("AAAAA"),
 		Records:            []*kinesis.Record{},
 	}, awsNoErr)
 	sssm.On("End").Return()

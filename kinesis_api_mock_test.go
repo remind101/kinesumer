@@ -1,8 +1,10 @@
 package kinesumer
 
-import "github.com/stretchr/testify/mock"
-
-import "github.com/aws/aws-sdk-go/service/kinesis"
+import (
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/service/kinesis"
+	"github.com/stretchr/testify/mock"
+)
 
 type KinesisAPIMock struct {
 	mock.Mock
@@ -55,61 +57,49 @@ func (m *KinesisAPIMock) DescribeStream(_a0 *kinesis.DescribeStreamInput) (*kine
 func (m *KinesisAPIMock) DescribeStreamPages(_a0 *kinesis.DescribeStreamInput, _a1 func(*kinesis.DescribeStreamOutput, bool) bool) error {
 	ret := m.Called(_a0, _a1)
 
-	sn := "TestStream"
-	active := "ACTIVE"
-	tr := true
-	_0 := "0"
-	_100 := "100"
-	_101 := "101"
-	_200 := "200"
-	shard0 := "shard0"
-	shard1 := "shard1"
-	_7f := "7f"
-	_80 := "80"
-	_ff := "ff"
 	a := kinesis.Shard{
 		AdjacentParentShardID: nil,
 		HashKeyRange: &kinesis.HashKeyRange{
-			StartingHashKey: &_0,
-			EndingHashKey:   &_7f,
+			StartingHashKey: aws.String("0"),
+			EndingHashKey:   aws.String("7f"),
 		},
 		ParentShardID: nil,
 		SequenceNumberRange: &kinesis.SequenceNumberRange{
-			StartingSequenceNumber: &_0,
-			EndingSequenceNumber:   &_100,
+			StartingSequenceNumber: aws.String("0"),
+			EndingSequenceNumber:   aws.String("100"),
 		},
-		ShardID: &shard0,
+		ShardID: aws.String("shard0"),
 	}
 	b := kinesis.Shard{
 		AdjacentParentShardID: nil,
 		HashKeyRange: &kinesis.HashKeyRange{
-			StartingHashKey: &_80,
-			EndingHashKey:   &_ff,
+			StartingHashKey: aws.String("80"),
+			EndingHashKey:   aws.String("ff"),
 		},
 		ParentShardID: nil,
 		SequenceNumberRange: &kinesis.SequenceNumberRange{
-			StartingSequenceNumber: &_101,
-			EndingSequenceNumber:   &_200,
+			StartingSequenceNumber: aws.String("101"),
+			EndingSequenceNumber:   aws.String("200"),
 		},
-		ShardID: &shard1,
+		ShardID: aws.String("shard1"),
 	}
 	cont := _a1(
 		&kinesis.DescribeStreamOutput{
 			StreamDescription: &kinesis.StreamDescription{
-				HasMoreShards: &tr,
+				HasMoreShards: aws.Boolean(true),
 				Shards:        []*kinesis.Shard{&a},
-				StreamName:    &sn,
-				StreamStatus:  &active,
+				StreamName:    aws.String("TestStream"),
+				StreamStatus:  aws.String("ACTIVE"),
 			},
 		}, true)
 	if cont {
 		_a1(
 			&kinesis.DescribeStreamOutput{
 				StreamDescription: &kinesis.StreamDescription{
-					HasMoreShards: &tr,
+					HasMoreShards: aws.Boolean(true),
 					Shards:        []*kinesis.Shard{&b},
-					StreamName:    &sn,
-					StreamStatus:  &active,
+					StreamName:    aws.String("TestStream"),
+					StreamStatus:  aws.String("ACTIVE"),
 				},
 			}, false)
 	}
@@ -153,19 +143,14 @@ func (m *KinesisAPIMock) ListStreams(_a0 *kinesis.ListStreamsInput) (*kinesis.Li
 func (m *KinesisAPIMock) ListStreamsPages(_a0 *kinesis.ListStreamsInput, _a1 func(*kinesis.ListStreamsOutput, bool) bool) error {
 	ret := m.Called(_a0, _a1)
 
-	tr := true
-	fa := false
-	a := "a"
-	b := "b"
-	c := "c"
 	cont := _a1(&kinesis.ListStreamsOutput{
-		HasMoreStreams: &tr,
-		StreamNames:    []*string{&a, &b},
+		HasMoreStreams: aws.Boolean(true),
+		StreamNames:    []*string{aws.String("a"), aws.String("b")},
 	}, true)
 	if cont {
 		_a1(&kinesis.ListStreamsOutput{
-			HasMoreStreams: &fa,
-			StreamNames:    []*string{&c},
+			HasMoreStreams: aws.Boolean(false),
+			StreamNames:    []*string{aws.String("c")},
 		}, false)
 	}
 	r0 := ret.Error(0)
