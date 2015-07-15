@@ -45,7 +45,6 @@ var DefaultKinesumerOptions = KinesumerOptions{
 }
 
 func NewDefaultKinesumer(awsAccessKey, awsSecretKey, awsRegion, stream string) (*Kinesumer, error) {
-
 	return NewKinesumer(
 		kinesis.New(
 			&aws.Config{

@@ -1,6 +1,8 @@
 package kinesumer
 
-import "github.com/stretchr/testify/mock"
+import (
+	"github.com/stretchr/testify/mock"
+)
 
 type ShardStateSyncMock struct {
 	mock.Mock
