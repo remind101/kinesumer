@@ -15,11 +15,11 @@ func NewEmptyStateSync() *EmptyStateSync {
 	}
 }
 
-func (e *EmptyStateSync) DoneC() chan *KinesisRecord {
+func (e *EmptyStateSync) DoneC() chan<- *KinesisRecord {
 	return e.c
 }
 
-func (e *EmptyStateSync) Begin() error {
+func (e *EmptyStateSync) Begin(chan<- *KinesisRecord) error {
 	e.wg.Add(1)
 	go func() {
 		for range e.c {

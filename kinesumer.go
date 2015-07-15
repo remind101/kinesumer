@@ -2,9 +2,11 @@ package kinesumer
 
 import (
 	"errors"
+	"time"
 
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/service/kinesis"
-	"github.com/remind101/pkg/logger"
 )
 
 // Unit has only one possible value, Unit{}, and is used to make signal channels to tell the workers
@@ -20,7 +22,6 @@ type KinesumerAPI interface {
 type Kinesumer struct {
 	Kinesis   KinesisAPI
 	StateSync ShardStateSync
-	Logger    logger.Logger
 	Stream    *string
 	opt       *KinesumerOptions
 	records   chan *KinesisRecord
@@ -43,14 +44,47 @@ var DefaultKinesumerOptions = KinesumerOptions{
 	PollTime:            2000,
 }
 
-func NewKinesumer(kinesis KinesisAPI, stateSync ShardStateSync, logger logger.Logger,
-	stream string, opt KinesumerOptions) (*Kinesumer, error) {
+func NewDefaultKinesumer(awsAccessKey, awsSecretKey, awsRegion, stream string) (*Kinesumer, error) {
+
+	return NewKinesumer(
+		kinesis.New(
+			&aws.Config{
+				Credentials: credentials.NewStaticCredentials(awsAccessKey, awsSecretKey, ""),
+				Region:      awsRegion,
+			},
+		),
+		&EmptyStateSync{},
+		stream,
+		&DefaultKinesumerOptions)
+}
+
+func NewDefaultRedisKinesumer(awsAccessKey, awsSecretKey, awsRegion, redisURL, stream string) (*Kinesumer, error) {
+	rss, err := NewRedisStateSync(&RedisStateSyncOptions{
+		ShardStateSyncOptions: ShardStateSyncOptions{
+			Ticker: time.NewTicker(5 * time.Second).C,
+		},
+	})
+	if err != nil {
+		return nil, err
+	}
+	return NewKinesumer(
+		kinesis.New(
+			&aws.Config{
+				Credentials: credentials.NewStaticCredentials(awsAccessKey, awsSecretKey, ""),
+				Region:      awsRegion,
+			},
+		),
+		rss,
+		stream,
+		&DefaultKinesumerOptions)
+}
+
+func NewKinesumer(kinesis KinesisAPI, stateSync ShardStateSync, stream string, opt *KinesumerOptions) (*Kinesumer, error) {
 	return &Kinesumer{
 		Kinesis:   kinesis,
 		StateSync: stateSync,
-		Logger:    logger,
 		Stream:    &stream,
-		opt:       &opt,
+		opt:       opt,
 		records:   make(chan *KinesisRecord, opt.GetRecordsLimit*2+10),
 	}, nil
 }
@@ -86,7 +120,6 @@ func (k *Kinesumer) GetShards() (shards []*kinesis.Shard, err error) {
 		StreamName: k.Stream,
 	}, func(desc *kinesis.DescribeStreamOutput, _ bool) bool {
 		if *desc.StreamDescription.StreamStatus == "DELETING" {
-			k.Logger.Crit("Stream is being deleted", "stream", *k.Stream)
 			err = errors.New("Stream is being deleted")
 			return false
 		}
@@ -97,16 +130,7 @@ func (k *Kinesumer) GetShards() (shards []*kinesis.Shard, err error) {
 }
 
 func (k *Kinesumer) Begin() (err error) {
-	found, err := k.StreamExists()
-	if err != nil {
-		return
-	}
-	if !found {
-		k.Logger.Crit("Stream not found", "stream", *k.Stream)
-		return errors.New("Stream not found")
-	}
-
-	err = k.StateSync.Begin()
+	err = k.StateSync.Begin(k.records)
 	if err != nil {
 		return
 	}
@@ -121,7 +145,6 @@ func (k *Kinesumer) Begin() (err error) {
 	for _, shard := range shards {
 		worker := &ShardWorker{
 			kinesis:         k.Kinesis,
-			logger:          k.Logger,
 			shard:           shard,
 			stateSync:       k.StateSync,
 			stream:          k.Stream,
@@ -145,8 +168,6 @@ func (k *Kinesumer) End() {
 		case k.stop <- Unit{}:
 		}
 	}
-	k.Logger.Info("All workers stopped")
-
 	k.StateSync.End()
 }
 

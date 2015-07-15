@@ -5,17 +5,16 @@ import (
 	"time"
 
 	"github.com/garyburd/redigo/redis"
-	"github.com/remind101/pkg/logger"
 )
 
 type RedisStateSync struct {
 	heads    map[string]string
 	c        chan *KinesisRecord
+	recs     chan<- *KinesisRecord
 	mut      sync.Mutex
 	pool     *redis.Pool
 	redisKey string
 	ticker   <-chan time.Time
-	logger   logger.Logger
 	wg       sync.WaitGroup
 	modified bool
 }
@@ -38,28 +37,26 @@ func NewRedisStateSync(opt *RedisStateSyncOptions) (*RedisStateSync, error) {
 		pool:     redisPool,
 		redisKey: opt.RedisKey,
 		ticker:   opt.Ticker,
-		logger:   opt.Logger,
 		modified: true,
 	}, nil
 }
 
-func (r *RedisStateSync) DoneC() chan *KinesisRecord {
+func (r *RedisStateSync) DoneC() chan<- *KinesisRecord {
 	return r.c
 }
 
 func (r *RedisStateSync) Sync() {
-	r.logger.Info("Writing sequence numbers")
 	r.mut.Lock()
 	defer r.mut.Unlock()
 	if len(r.heads) > 0 && r.modified {
 		conn := r.pool.Get()
 		defer conn.Close()
 		if _, err := conn.Do("HMSET", redis.Args{r.redisKey}.AddFlat(r.heads)...); err != nil {
-			r.logger.Error("Failed to sync sequence numbers", "error", err)
+			r.recs <- &KinesisRecord{
+				Err: err,
+			}
 		}
 		r.modified = false
-	} else {
-		r.logger.Info("No sequence numbers to write")
 	}
 }
 
@@ -83,7 +80,8 @@ loop:
 	r.wg.Done()
 }
 
-func (r *RedisStateSync) Begin() error {
+func (r *RedisStateSync) Begin(recs chan<- *KinesisRecord) error {
+	r.recs = recs
 	conn := r.pool.Get()
 	defer conn.Close()
 	res, err := conn.Do("HGETALL", r.redisKey)
@@ -98,11 +96,8 @@ func (r *RedisStateSync) Begin() error {
 }
 
 func (r *RedisStateSync) End() {
-	r.logger.Info("Redis state sync stopping")
 	close(r.c)
 	r.wg.Wait()
-	r.logger.Info("Redis state sync stopped")
-
 }
 
 func (r *RedisStateSync) GetStartSequence(shardID *string) *string {
