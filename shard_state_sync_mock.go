@@ -8,7 +8,7 @@ type ShardStateSyncMock struct {
 	mock.Mock
 }
 
-func (m *ShardStateSyncMock) DoneC() chan *KinesisRecord {
+func (m *ShardStateSyncMock) DoneC() chan<- *KinesisRecord {
 	ret := m.Called()
 
 	var r0 chan *KinesisRecord
@@ -18,8 +18,8 @@ func (m *ShardStateSyncMock) DoneC() chan *KinesisRecord {
 
 	return r0
 }
-func (m *ShardStateSyncMock) Begin() error {
-	ret := m.Called()
+func (m *ShardStateSyncMock) Begin(_a0 chan<- *KinesisRecord) error {
+	ret := m.Called(_a0)
 
 	r0 := ret.Error(0)
 

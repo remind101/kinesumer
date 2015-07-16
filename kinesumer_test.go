@@ -1,15 +1,12 @@
 package kinesumer
 
 import (
-	"bytes"
 	"errors"
-	"log"
 	"testing"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/kinesis"
-	"github.com/remind101/pkg/logger"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -17,13 +14,11 @@ import (
 func makeTestKinesumer(t *testing.T) (*Kinesumer, *KinesisAPIMock, *ShardStateSyncMock) {
 	kin := new(KinesisAPIMock)
 	sssm := new(ShardStateSyncMock)
-	buf := new(bytes.Buffer)
 	k, err := NewKinesumer(
 		kin,
 		sssm,
-		logger.New(log.New(buf, "", 0)),
 		"TestStream",
-		DefaultKinesumerOptions,
+		&DefaultKinesumerOptions,
 	)
 	if err != nil {
 		t.Error(err)
@@ -64,35 +59,28 @@ func TestKinesumerGetShards(t *testing.T) {
 
 func TestKinesumerBeginEnd(t *testing.T) {
 	k, kin, sssm := makeTestKinesumer(t)
-	awsNoErr := awserr.Error(nil)
-	stream := "c"
-	k.Stream = &stream
-	kin.On("ListStreamsPages", mock.Anything, mock.Anything).Return(awsNoErr)
-	sssm.On("Begin").Return(errors.New("bad shard sync")).Once()
+	k.Stream = aws.String("c")
+	kin.On("ListStreamsPages", mock.Anything, mock.Anything).Return(awserr.Error(nil))
+	sssm.On("Begin", mock.Anything).Return(errors.New("bad shard sync")).Once()
+	sssm.On("Begin", mock.Anything).Return(nil)
 	err := k.Begin()
 	assert.Error(t, err)
 
-	stream = "bad"
-	sssm.On("Begin").Return(nil)
-	err = k.Begin()
-	assert.Error(t, err)
-
-	stream = "c"
 	kin.On("DescribeStreamPages", mock.Anything, mock.Anything).Return(awserr.New("bad", "bad", nil)).Once()
 	err = k.Begin()
 	assert.Error(t, err)
 
-	kin.On("DescribeStreamPages", mock.Anything, mock.Anything).Return(awsNoErr)
+	kin.On("DescribeStreamPages", mock.Anything, mock.Anything).Return(awserr.Error(nil))
 	sssm.On("GetStartSequence", mock.Anything).Return(aws.String("0")).Once()
 	sssm.On("GetStartSequence", mock.Anything).Return(nil)
 	kin.On("GetShardIterator", mock.Anything).Return(&kinesis.GetShardIteratorOutput{
 		ShardIterator: aws.String("0"),
-	}, awsNoErr)
+	}, awserr.Error(nil))
 	kin.On("GetRecords", mock.Anything).Return(&kinesis.GetRecordsOutput{
 		MillisBehindLatest: aws.Long(0),
 		NextShardIterator:  aws.String("AAAAA"),
 		Records:            []*kinesis.Record{},
-	}, awsNoErr)
+	}, awserr.Error(nil))
 	sssm.On("End").Return()
 	assert.Nil(t, k.Begin())
 	assert.Equal(t, 2, k.nRunning)

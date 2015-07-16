@@ -1,33 +1,27 @@
 package kinesumer
 
 import (
-	"bytes"
 	"errors"
-	"log"
-	"strings"
 	"testing"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/kinesis"
-	"github.com/remind101/pkg/logger"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
 
 func makeTestShardWorker() (*ShardWorker, *KinesisAPIMock, *ShardStateSyncMock, chan Unit,
-	chan Unit, chan *KinesisRecord, *bytes.Buffer) {
+	chan Unit, chan *KinesisRecord) {
 	kin := new(KinesisAPIMock)
 	sssm := new(ShardStateSyncMock)
-	buf := new(bytes.Buffer)
 	stop := make(chan Unit, 1)
 	stopped := make(chan Unit, 1)
 	c := make(chan *KinesisRecord, 100)
 
 	return &ShardWorker{
 		kinesis: kin,
-		logger:  logger.New(log.New(buf, "", 0)),
 		shard: &kinesis.Shard{
 			AdjacentParentShardID: nil,
 			HashKeyRange: &kinesis.HashKeyRange{
@@ -48,23 +42,22 @@ func makeTestShardWorker() (*ShardWorker, *KinesisAPIMock, *ShardStateSyncMock, 
 		stopped:         stopped,
 		c:               c,
 		GetRecordsLimit: 123,
-	}, kin, sssm, stop, stopped, c, buf
+	}, kin, sssm, stop, stopped, c
 }
 
 func TestShardWorkerGetShardIterator(t *testing.T) {
-	s, kin, _, _, _, _, _ := makeTestShardWorker()
-	awsNoErr := awserr.Error(nil)
+	s, kin, _, _, _, _ := makeTestShardWorker()
 
 	kin.On("GetShardIterator", mock.Anything).Return(&kinesis.GetShardIteratorOutput{
 		ShardIterator: aws.String("AAAAA"),
-	}, awsNoErr)
+	}, awserr.Error(nil))
 	res, err := s.GetShardIterator("TYPE", aws.String("123"))
 	assert.Nil(t, err)
 	assert.Equal(t, "AAAAA", *res)
 }
 
 func TestShardWorkerTryGetShardIterator(t *testing.T) {
-	s, kin, _, _, _, _, _ := makeTestShardWorker()
+	s, kin, _, _, _, _ := makeTestShardWorker()
 
 	kin.On("GetShardIterator", mock.Anything).Return(nil, awserr.New("bad", "bad", errors.New("bad")))
 	assert.Panics(t, func() {
@@ -73,92 +66,84 @@ func TestShardWorkerTryGetShardIterator(t *testing.T) {
 }
 
 func TestShardWorkerGetRecords(t *testing.T) {
-	s, kin, _, _, _, _, _ := makeTestShardWorker()
-	awsNoErr := awserr.Error(nil)
+	s, kin, _, _, _, _ := makeTestShardWorker()
 
-	iter := "AAAA"
 	kin.On("GetRecords", mock.Anything).Return(&kinesis.GetRecordsOutput{
 		MillisBehindLatest: aws.Long(0),
-		NextShardIterator:  &iter,
+		NextShardIterator:  aws.String("AAAA"),
 		Records:            []*kinesis.Record{},
-	}, awsNoErr)
+	}, awserr.Error(nil))
 
-	records, nextIt, mills, err := s.GetRecords(&iter)
+	records, nextIt, mills, err := s.GetRecords(aws.String("AAAA"))
 	assert.Nil(t, err)
 	assert.Equal(t, 0, len(records))
-	assert.Equal(t, iter, *nextIt)
+	assert.Equal(t, "AAAA", *nextIt)
 	assert.Equal(t, int64(0), mills)
 }
 
 func TestShardWorkerGetRecordsAndProcess(t *testing.T) {
-	s, kin, sssm, stp, _, c, buf := makeTestShardWorker()
+	s, kin, sssm, stp, _, c := makeTestShardWorker()
 
-	awsNoErr := awserr.Error(nil)
-	it := "AAAA"
-	partKey := "aaaa"
 	record1 := kinesis.Record{
 		Data:           []byte("help I'm trapped"),
-		PartitionKey:   &partKey,
+		PartitionKey:   aws.String("aaaa"),
 		SequenceNumber: aws.String("123"),
 	}
 	kin.On("GetRecords", mock.Anything).Return(&kinesis.GetRecordsOutput{
 		MillisBehindLatest: aws.Long(0),
-		NextShardIterator:  &it,
+		NextShardIterator:  aws.String("AAAA"),
 		Records:            []*kinesis.Record{&record1},
-	}, awsNoErr).Once()
+	}, awserr.Error(nil)).Once()
 	doneC := make(chan *KinesisRecord)
 	sssm.On("DoneC").Return(doneC)
-	brk, nextIt, nextSeq := s.GetRecordsAndProcess(&it, aws.String("123"))
+	brk, nextIt, nextSeq := s.GetRecordsAndProcess(aws.String("AAAA"), aws.String("123"))
 	rec := <-c
-	assert.Equal(t, &record1, rec.Record)
+	assert.Equal(t, record1, rec.Record)
 	assert.False(t, brk)
-	assert.Equal(t, it, *nextIt)
+	assert.Equal(t, "AAAA", *nextIt)
 	assert.Equal(t, "123", *nextSeq)
 
+	err := awserr.New("bad", "bad", nil)
 	stp <- Unit{}
 	kin.On("GetRecords", mock.Anything).Return(&kinesis.GetRecordsOutput{
 		MillisBehindLatest: aws.Long(0),
-		NextShardIterator:  &it,
+		NextShardIterator:  aws.String("AAAA"),
 		Records:            []*kinesis.Record{},
-	}, awserr.New("bad", "bad", nil))
+	}, err)
 	kin.On("GetShardIterator", mock.Anything).Return(&kinesis.GetShardIteratorOutput{
-		ShardIterator: &it,
-	}, awsNoErr)
-	brk, nextIt, nextSeq = s.GetRecordsAndProcess(&it, aws.String("123"))
-	assert.True(t, strings.Contains(buf.String(), "GetRecords encountered an error"))
+		ShardIterator: aws.String("AAAA"),
+	}, awserr.Error(nil))
+	brk, nextIt, nextSeq = s.GetRecordsAndProcess(aws.String("AAAA"), aws.String("123"))
+	rec = <-c
+	assert.Equal(t, err, rec.Err)
 	kin.AssertNumberOfCalls(t, "GetShardIterator", 1)
 	assert.True(t, brk)
 }
 
 func TestShardWorkerRun(t *testing.T) {
-	s, kin, sssm, stp, stpd, c, _ := makeTestShardWorker()
-	sssm.On("GetStartSequence", mock.Anything).Return(nil)
+	s, kin, sssm, stp, stpd, c := makeTestShardWorker()
+	sssm.On("GetStartSequence", mock.Anything).Return(aws.String("AAAA"))
 
-	awsNoErr := awserr.Error(nil)
-	it := "AAAA"
-	seq := "123"
-	partKey := "aaaa"
 	record1 := kinesis.Record{
 		Data:           []byte("help I'm trapped"),
-		PartitionKey:   &partKey,
-		SequenceNumber: &seq,
+		PartitionKey:   aws.String("aaaa"),
+		SequenceNumber: aws.String("123"),
 	}
 	kin.On("GetRecords", mock.Anything).Return(&kinesis.GetRecordsOutput{
 		MillisBehindLatest: aws.Long(0),
-		NextShardIterator:  &it,
+		NextShardIterator:  aws.String("AAAA"),
 		Records:            []*kinesis.Record{&record1},
-	}, awsNoErr).Once()
+	}, awserr.Error(nil)).Once()
 	kin.On("GetRecords", mock.Anything).Return(&kinesis.GetRecordsOutput{
 		MillisBehindLatest: aws.Long(0),
-		NextShardIterator:  &it,
+		NextShardIterator:  aws.String("AAAA"),
 		Records:            []*kinesis.Record{},
-	}, awsNoErr)
+	}, awserr.Error(nil))
 	doneC := make(chan *KinesisRecord)
 	sssm.On("DoneC").Return(doneC)
-	iter := "AAAA"
 	kin.On("GetShardIterator", mock.Anything).Return(&kinesis.GetShardIteratorOutput{
-		ShardIterator: &iter,
-	}, awsNoErr)
+		ShardIterator: aws.String("AAAA"),
+	}, awserr.Error(nil))
 	go func() {
 		time.Sleep(10 * time.Millisecond)
 		stp <- Unit{}
@@ -166,5 +151,5 @@ func TestShardWorkerRun(t *testing.T) {
 	s.RunWorker()
 	<-stpd
 	rec := <-c
-	assert.Equal(t, &record1, rec.Record)
+	assert.Equal(t, record1, rec.Record)
 }

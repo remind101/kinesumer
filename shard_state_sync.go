@@ -31,7 +31,9 @@ type KinesisRecord struct {
 }
 
 func (s *KinesisRecord) Done() {
-	s.Sync <- s
+	if s.Err == nil {
+		s.Sync <- s
+	}
 }
 
 type ShardStateSync interface {

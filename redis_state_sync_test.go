@@ -1,44 +1,38 @@
 package kinesumer
 
 import (
-	"bytes"
-	"log"
-	"strings"
 	"testing"
 	"time"
 
 	"github.com/garyburd/redigo/redis"
-	"github.com/remind101/pkg/logger"
 )
 
 var sequenceKey = "pusherman360.sequence.testing"
 
-func makeRedisStateSync() (*bytes.Buffer, *RedisStateSync, error) {
-	buf := new(bytes.Buffer)
+func makeRedisStateSync() (*RedisStateSync, error) {
 	r, err := NewRedisStateSync(&RedisStateSyncOptions{
 		ShardStateSyncOptions: ShardStateSyncOptions{
-			Logger: logger.New(log.New(buf, "", 0)),
 			Ticker: time.NewTicker(time.Nanosecond).C,
 		},
 		RedisURL: "redis://127.0.0.1:6379",
 		RedisKey: sequenceKey,
 	})
-	return buf, r, err
+	return r, err
 }
 
-func makeRedisStateSyncWithSamples() (*bytes.Buffer, *RedisStateSync) {
-	_, r, _ := makeRedisStateSync()
+func makeRedisStateSyncWithSamples() *RedisStateSync {
+	r, _ := makeRedisStateSync()
 	conn := r.pool.Get()
 	defer conn.Close()
 	conn.Do("DEL", sequenceKey)
 	conn.Do("HSET", sequenceKey, "shard1", "1000")
 	conn.Do("HSET", sequenceKey, "shard2", "2000")
-	buf, r, _ := makeRedisStateSync()
-	return buf, r
+	r, _ = makeRedisStateSync()
+	return r
 }
 
 func TestRedisGoodLogin(t *testing.T) {
-	_, r, err := makeRedisStateSync()
+	r, err := makeRedisStateSync()
 	if err != nil {
 		t.Error("Failed to connect to redis at localhost:6379")
 	}
@@ -54,8 +48,9 @@ func TestRedisGoodLogin(t *testing.T) {
 }
 
 func TestRedisBeginEnd(t *testing.T) {
-	_, r := makeRedisStateSyncWithSamples()
-	err := r.Begin()
+	r := makeRedisStateSyncWithSamples()
+	c := make(chan *KinesisRecord)
+	err := r.Begin(c)
 	if err != nil {
 		t.Error(err)
 	}
@@ -63,8 +58,9 @@ func TestRedisBeginEnd(t *testing.T) {
 }
 
 func TestGetStartSequence(t *testing.T) {
-	_, r := makeRedisStateSyncWithSamples()
-	_ = r.Begin()
+	r := makeRedisStateSyncWithSamples()
+	c := make(chan *KinesisRecord)
+	_ = r.Begin(c)
 	r.End()
 	shard1 := "shard1"
 	seq := r.GetStartSequence(&shard1)
@@ -74,17 +70,15 @@ func TestGetStartSequence(t *testing.T) {
 }
 
 func TestWriteAll(t *testing.T) {
-	buf, r := makeRedisStateSyncWithSamples()
-	r.Begin()
+	r := makeRedisStateSyncWithSamples()
+	c := make(chan *KinesisRecord)
+	r.Begin(c)
 	r.heads["shard1"] = "1001"
 	r.heads["shard2"] = "2001"
 	r.Sync()
 	r.End()
-	if !strings.Contains(buf.String(), "Writing sequence numbers") {
-		t.Error("Expected logger entry")
-	}
-	_, r, _ = makeRedisStateSync()
-	r.Begin()
+	r, _ = makeRedisStateSync()
+	r.Begin(c)
 	r.End()
 	if r.heads["shard1"] != "1001" {
 		t.Error("Expected sequence number to be written")
