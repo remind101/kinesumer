@@ -15,6 +15,7 @@ func (e *KinesumerError) Error() string {
 }
 
 // If Err == nil then everything else is set
+// Otherwise, Kinesis encountered a problem
 type KinesisRecord struct {
 	// This contains:
 	//   Data []byte
