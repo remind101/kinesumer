@@ -7,13 +7,16 @@ import (
 	"github.com/garyburd/redigo/redis"
 )
 
-var sequenceKey = "pusherman360.sequence.testing"
+var (
+	prefix      = "pusherman360.testing"
+	sequenceKey = prefix + ".sequence"
+)
 
 func makeRedisStateSync() (*RedisStateSync, error) {
 	r, err := NewRedisStateSync(&RedisStateSyncOptions{
-		Ticker:   time.NewTicker(time.Nanosecond).C,
-		RedisURL: "redis://127.0.0.1:6379",
-		RedisKey: sequenceKey,
+		Ticker:      time.NewTicker(time.Nanosecond).C,
+		RedisURL:    "redis://127.0.0.1:6379",
+		RedisPrefix: prefix,
 	})
 	return r, err
 }

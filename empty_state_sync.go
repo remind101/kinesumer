@@ -39,3 +39,11 @@ func (e *EmptyStateSync) GetStartSequence(*string) *string {
 
 func (e *EmptyStateSync) Sync() {
 }
+
+func (e *EmptyStateSync) TryAcquire(shardID *string) error {
+	return nil
+}
+
+func (e *EmptyStateSync) Release(shardID *string) error {
+	return nil
+}

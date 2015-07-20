@@ -1,6 +1,8 @@
 package kinesumer
 
 import (
+	"errors"
+	"math/rand"
 	"sync"
 	"time"
 
@@ -8,21 +10,34 @@ import (
 )
 
 type RedisStateSync struct {
-	heads    map[string]string
-	c        chan *KinesisRecord
-	recs     chan<- *KinesisRecord
-	mut      sync.Mutex
-	pool     *redis.Pool
-	redisKey string
-	ticker   <-chan time.Time
-	wg       sync.WaitGroup
-	modified bool
+	heads       map[string]string
+	c           chan *KinesisRecord
+	recs        chan<- *KinesisRecord
+	mut         sync.Mutex
+	pool        *redis.Pool
+	redisPrefix string
+	savePeriod  time.Duration
+	alivePeriod time.Duration
+	wg          sync.WaitGroup
+	modified    bool
+	lock        string
 }
 
 type RedisStateSyncOptions struct {
-	Ticker   <-chan time.Time
-	RedisURL string
-	RedisKey string
+	SavePeriod  time.Duration
+	AlivePeriod time.Duration
+	RedisURL    string
+	RedisPrefix string
+}
+
+var letters = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
+
+func randString(n int) string {
+	b := make([]rune, n)
+	for i := range b {
+		b[i] = letters[rand.Intn(len(letters))]
+	}
+	return string(b)
 }
 
 func NewRedisStateSync(opt *RedisStateSyncOptions) (*RedisStateSync, error) {
@@ -31,13 +46,15 @@ func NewRedisStateSync(opt *RedisStateSyncOptions) (*RedisStateSync, error) {
 		return nil, err
 	}
 	return &RedisStateSync{
-		heads:    make(map[string]string),
-		c:        make(chan *KinesisRecord),
-		mut:      sync.Mutex{},
-		pool:     redisPool,
-		redisKey: opt.RedisKey,
-		ticker:   opt.Ticker,
-		modified: true,
+		heads:       make(map[string]string),
+		c:           make(chan *KinesisRecord),
+		mut:         sync.Mutex{},
+		pool:        redisPool,
+		redisPrefix: opt.RedisPrefix,
+		savePeriod:  opt.SavePeriod,
+		alivePeriod: opt.AlivePeriod,
+		modified:    true,
+		lock:        randString(255),
 	}, nil
 }
 
@@ -51,7 +68,7 @@ func (r *RedisStateSync) Sync() {
 	if len(r.heads) > 0 && r.modified {
 		conn := r.pool.Get()
 		defer conn.Close()
-		if _, err := conn.Do("HMSET", redis.Args{r.redisKey}.AddFlat(r.heads)...); err != nil {
+		if _, err := conn.Do("HMSET", redis.Args{r.redisPrefix + ":sequence"}.AddFlat(r.heads)...); err != nil {
 			r.recs <- &KinesisRecord{
 				Err: err,
 			}
@@ -61,10 +78,11 @@ func (r *RedisStateSync) Sync() {
 }
 
 func (r *RedisStateSync) RunShardSync() {
+	ticker := time.NewTicker(r.savePeriod).C
 loop:
 	for {
 		select {
-		case <-r.ticker:
+		case <-ticker:
 			r.Sync()
 		case state, ok := <-r.c:
 			if !ok {
@@ -84,7 +102,7 @@ func (r *RedisStateSync) Begin(recs chan<- *KinesisRecord) error {
 	r.recs = recs
 	conn := r.pool.Get()
 	defer conn.Close()
-	res, err := conn.Do("HGETALL", r.redisKey)
+	res, err := conn.Do("HGETALL", r.redisPrefix+":sequence")
 	r.heads, err = redis.StringMap(res, err)
 	if err != nil {
 		return err
@@ -107,4 +125,37 @@ func (r *RedisStateSync) GetStartSequence(shardID *string) *string {
 	} else {
 		return nil
 	}
+}
+
+func (r *RedisStateSync) TryAcquire(shardID *string) error {
+	conn := r.pool.Get()
+	defer conn.Close()
+	res, err := conn.Do("SET", r.redisPrefix+".lock."+*shardID, r.lock, "PX", r.alivePeriod/time.Millisecond, "NX")
+	if err != nil {
+		return err
+	}
+	if res != "OK" {
+		return errors.New("Failed to acquire lock")
+	}
+	// TODO: launch ttl updater
+	return nil
+}
+
+func (r *RedisStateSync) Release(shardID *string) error {
+	conn := r.pool.Get()
+	defer conn.Close()
+	key := r.redisPrefix + ".lock." + *shardID
+	res, err := redis.String(conn.Do("GET", key))
+	if err != nil {
+		return err
+	}
+	if res != r.lock {
+		return errors.New("Bad lock")
+	}
+	// TODO: halt ttl updater
+	_, err = conn.Do("DEL", key)
+	if err != nil {
+		return err
+	}
+	return nil
 }
