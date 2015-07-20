@@ -59,9 +59,7 @@ func NewDefaultKinesumer(awsAccessKey, awsSecretKey, awsRegion, stream string) (
 
 func NewDefaultRedisKinesumer(awsAccessKey, awsSecretKey, awsRegion, redisURL, stream string) (*Kinesumer, error) {
 	rss, err := NewRedisStateSync(&RedisStateSyncOptions{
-		ShardStateSyncOptions: ShardStateSyncOptions{
-			Ticker: time.NewTicker(5 * time.Second).C,
-		},
+		Ticker: time.NewTicker(5 * time.Second).C,
 	})
 	if err != nil {
 		return nil, err

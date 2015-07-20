@@ -1,8 +1,6 @@
 package kinesumer
 
 import (
-	"time"
-
 	"github.com/aws/aws-sdk-go/service/kinesis"
 )
 
@@ -42,8 +40,4 @@ type ShardStateSync interface {
 	End()
 	GetStartSequence(shardID *string) *string
 	Sync()
-}
-
-type ShardStateSyncOptions struct {
-	Ticker <-chan time.Time
 }

@@ -20,7 +20,7 @@ type RedisStateSync struct {
 }
 
 type RedisStateSyncOptions struct {
-	ShardStateSyncOptions
+	Ticker   <-chan time.Time
 	RedisURL string
 	RedisKey string
 }

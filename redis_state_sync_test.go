@@ -11,9 +11,7 @@ var sequenceKey = "pusherman360.sequence.testing"
 
 func makeRedisStateSync() (*RedisStateSync, error) {
 	r, err := NewRedisStateSync(&RedisStateSyncOptions{
-		ShardStateSyncOptions: ShardStateSyncOptions{
-			Ticker: time.NewTicker(time.Nanosecond).C,
-		},
+		Ticker:   time.NewTicker(time.Nanosecond).C,
 		RedisURL: "redis://127.0.0.1:6379",
 		RedisKey: sequenceKey,
 	})
