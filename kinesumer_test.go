@@ -1,7 +1,6 @@
 package kinesumer
 
 import (
-	"errors"
 	"testing"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -60,17 +59,13 @@ func TestKinesumerGetShards(t *testing.T) {
 func TestKinesumerBeginEnd(t *testing.T) {
 	k, kin, sssm := makeTestKinesumer(t)
 	k.Stream = aws.String("c")
-	kin.On("ListStreamsPages", mock.Anything, mock.Anything).Return(awserr.Error(nil))
-	sssm.On("Begin", mock.Anything).Return(errors.New("bad shard sync")).Once()
-	sssm.On("Begin", mock.Anything).Return(nil)
+
+	kin.On("DescribeStreamPages", mock.Anything, mock.Anything).Return(awserr.New("bad", "bad", nil)).Once()
 	err := k.Begin()
 	assert.Error(t, err)
 
-	kin.On("DescribeStreamPages", mock.Anything, mock.Anything).Return(awserr.New("bad", "bad", nil)).Once()
-	err = k.Begin()
-	assert.Error(t, err)
-
 	kin.On("DescribeStreamPages", mock.Anything, mock.Anything).Return(awserr.Error(nil))
+	sssm.On("Begin", mock.Anything).Return(nil)
 	sssm.On("GetStartSequence", mock.Anything).Return(aws.String("0")).Once()
 	sssm.On("GetStartSequence", mock.Anything).Return(nil)
 	kin.On("GetShardIterator", mock.Anything).Return(&kinesis.GetShardIteratorOutput{
