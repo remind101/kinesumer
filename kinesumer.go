@@ -118,6 +118,10 @@ func (k *Kinesumer) GetShards() (shards []*kinesis.Shard, err error) {
 		Limit:      &k.opt.DescribeStreamLimit,
 		StreamName: k.Stream,
 	}, func(desc *kinesis.DescribeStreamOutput, _ bool) bool {
+		if desc == nil {
+			err = errors.New("Stream could not be described")
+			return false
+		}
 		if *desc.StreamDescription.StreamStatus == "DELETING" {
 			err = errors.New("Stream is being deleted")
 			return false
@@ -129,15 +133,16 @@ func (k *Kinesumer) GetShards() (shards []*kinesis.Shard, err error) {
 }
 
 func (k *Kinesumer) Begin() (err error) {
+	shards, err := k.GetShards()
+	if err != nil {
+		return
+	}
+
 	err = k.StateSync.Begin(k.records)
 	if err != nil {
 		return
 	}
 
-	shards, err := k.GetShards()
-	if err != nil {
-		return
-	}
 	k.nRunning = len(shards)
 	k.stop = make(chan Unit, k.nRunning)
 	k.stopped = make(chan Unit, k.nRunning)
