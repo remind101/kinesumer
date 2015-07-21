@@ -8,13 +8,14 @@ import (
 )
 
 var (
-	prefix      = "pusherman360.testing"
-	sequenceKey = prefix + ".sequence"
+	prefix      = "pusherman360:testing"
+	sequenceKey = prefix + ":sequence"
 )
 
 func makeRedisStateSync() (*RedisStateSync, error) {
 	r, err := NewRedisStateSync(&RedisStateSyncOptions{
-		Ticker:      time.NewTicker(time.Nanosecond).C,
+		SavePeriod:  time.Hour,
+		AlivePeriod: time.Hour,
 		RedisURL:    "redis://127.0.0.1:6379",
 		RedisPrefix: prefix,
 	})

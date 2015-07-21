@@ -41,16 +41,15 @@ func (m *ShardStateSyncMock) GetStartSequence(shardID *string) *string {
 func (m *ShardStateSyncMock) Sync() {
 	m.Called()
 }
-func (m *ShardStateSyncMock) TryAcquire(shardID *string) (string, error) {
+func (m *ShardStateSyncMock) TryAcquire(shardID *string) error {
 	ret := m.Called(shardID)
 
-	r0 := ret.Get(0).(string)
-	r1 := ret.Error(1)
+	r0 := ret.Error(0)
 
-	return r0, r1
+	return r0
 }
-func (m *ShardStateSyncMock) Release(shardID *string, lock string) error {
-	ret := m.Called(shardID, lock)
+func (m *ShardStateSyncMock) Release(shardID *string) error {
+	ret := m.Called(shardID)
 
 	r0 := ret.Error(0)
 

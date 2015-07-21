@@ -2,6 +2,7 @@ package kinesumer
 
 import (
 	"errors"
+	"math/rand"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -35,6 +36,7 @@ type KinesumerOptions struct {
 	DescribeStreamLimit int64
 	GetRecordsLimit     int64
 	PollTime            int
+	MaxShards           int
 }
 
 var DefaultKinesumerOptions = KinesumerOptions{
@@ -130,6 +132,30 @@ func (k *Kinesumer) GetShards() (shards []*kinesis.Shard, err error) {
 	return
 }
 
+func (k *Kinesumer) LaunchShardWorker(shards []*kinesis.Shard) (int, error) {
+	perm := rand.Perm(len(shards))
+	for _, j := range perm {
+		err := k.StateSync.TryAcquire(shards[j].ShardID)
+		if err == nil {
+			worker := &ShardWorker{
+				kinesis:         k.Kinesis,
+				shard:           shards[j],
+				stateSync:       k.StateSync,
+				stream:          k.Stream,
+				pollTime:        k.opt.PollTime,
+				stop:            k.stop,
+				stopped:         k.stopped,
+				c:               k.records,
+				GetRecordsLimit: k.opt.GetRecordsLimit,
+			}
+			go worker.RunWorker()
+			k.nRunning++
+			return j, nil
+		}
+	}
+	return 0, errors.New("Could not launch worker")
+}
+
 func (k *Kinesumer) Begin() (err error) {
 	shards, err := k.GetShards()
 	if err != nil {
@@ -141,22 +167,20 @@ func (k *Kinesumer) Begin() (err error) {
 		return
 	}
 
-	k.nRunning = len(shards)
+	n := k.opt.MaxShards
+	if n <= 0 || len(shards) < n {
+		n = len(shards)
+	}
+
 	k.stop = make(chan Unit, k.nRunning)
 	k.stopped = make(chan Unit, k.nRunning)
-	for _, shard := range shards {
-		worker := &ShardWorker{
-			kinesis:         k.Kinesis,
-			shard:           shard,
-			stateSync:       k.StateSync,
-			stream:          k.Stream,
-			pollTime:        k.opt.PollTime,
-			stop:            k.stop,
-			stopped:         k.stopped,
-			c:               k.records,
-			GetRecordsLimit: k.opt.GetRecordsLimit,
+	for i := 0; i < n; i++ {
+		j, err := k.LaunchShardWorker(shards)
+		if err != nil {
+			k.End()
+			return err
 		}
-		go worker.RunWorker()
+		shards = append(shards[:j], shards[j+1:]...)
 	}
 
 	return

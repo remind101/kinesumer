@@ -68,6 +68,7 @@ func TestKinesumerBeginEnd(t *testing.T) {
 	sssm.On("Begin", mock.Anything).Return(nil)
 	sssm.On("GetStartSequence", mock.Anything).Return(aws.String("0")).Once()
 	sssm.On("GetStartSequence", mock.Anything).Return(nil)
+	sssm.On("TryAcquire", mock.Anything).Return(nil)
 	kin.On("GetShardIterator", mock.Anything).Return(&kinesis.GetShardIteratorOutput{
 		ShardIterator: aws.String("0"),
 	}, awserr.Error(nil))
