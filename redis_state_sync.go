@@ -11,6 +11,7 @@ import (
 
 type RedisStateSync struct {
 	heads       map[string]string
+	acquired    []string
 	c           chan *KinesisRecord
 	recs        chan<- *KinesisRecord
 	mut         sync.Mutex
@@ -47,6 +48,7 @@ func NewRedisStateSync(opt *RedisStateSyncOptions) (*RedisStateSync, error) {
 	}
 	return &RedisStateSync{
 		heads:       make(map[string]string),
+		acquired:    make([]string, 0),
 		c:           make(chan *KinesisRecord),
 		mut:         sync.Mutex{},
 		pool:        redisPool,
@@ -78,12 +80,15 @@ func (r *RedisStateSync) Sync() {
 }
 
 func (r *RedisStateSync) RunShardSync() {
-	ticker := time.NewTicker(r.savePeriod).C
+	saveTicker := time.NewTicker(r.savePeriod).C
+	ttlTicker := time.NewTicker(r.alivePeriod * 4 / 5).C
 loop:
 	for {
 		select {
-		case <-ticker:
+		case <-saveTicker:
 			r.Sync()
+		case <-ttlTicker:
+			r.Reacquire()
 		case state, ok := <-r.c:
 			if !ok {
 				break loop
@@ -137,8 +142,29 @@ func (r *RedisStateSync) TryAcquire(shardID *string) error {
 	if res != "OK" {
 		return errors.New("Failed to acquire lock")
 	}
-	// TODO: launch ttl updater
+	r.acquired = append(r.acquired, *shardID)
 	return nil
+}
+
+func (r *RedisStateSync) Reacquire() {
+	conn := r.pool.Get()
+	defer conn.Close()
+	for _, shardID := range r.acquired {
+		res, err := conn.Do("PEXPIRE", r.redisPrefix+".lock."+shardID, r.alivePeriod/time.Millisecond, "NX")
+		if err != nil || res != "OK" {
+			if err != nil {
+				r.recs <- &KinesisRecord{
+					Err: err,
+				}
+			}
+			err = r.TryAcquire(&shardID)
+			if err != nil {
+				r.recs <- &KinesisRecord{
+					Err: err,
+				}
+			}
+		}
+	}
 }
 
 func (r *RedisStateSync) Release(shardID *string) error {
@@ -152,7 +178,6 @@ func (r *RedisStateSync) Release(shardID *string) error {
 	if res != r.lock {
 		return errors.New("Bad lock")
 	}
-	// TODO: halt ttl updater
 	_, err = conn.Do("DEL", key)
 	if err != nil {
 		return err
