@@ -11,7 +11,7 @@ import (
 
 type RedisStateSync struct {
 	heads       map[string]string
-	acquired    []string
+	acquired    map[string]Unit
 	c           chan *KinesisRecord
 	recs        chan<- *KinesisRecord
 	mut         sync.Mutex
@@ -48,7 +48,7 @@ func NewRedisStateSync(opt *RedisStateSyncOptions) (*RedisStateSync, error) {
 	}
 	return &RedisStateSync{
 		heads:       make(map[string]string),
-		acquired:    make([]string, 0),
+		acquired:    make(map[string]Unit, 0),
 		c:           make(chan *KinesisRecord),
 		mut:         sync.Mutex{},
 		pool:        redisPool,
@@ -135,6 +135,9 @@ func (r *RedisStateSync) GetStartSequence(shardID *string) *string {
 func (r *RedisStateSync) TryAcquire(shardID *string) error {
 	conn := r.pool.Get()
 	defer conn.Close()
+	if _, exists := r.acquired[*shardID]; exists {
+		return errors.New("Lock already acquired by this process")
+	}
 	res, err := conn.Do("SET", r.redisPrefix+".lock."+*shardID, r.lock, "PX", r.alivePeriod/time.Millisecond, "NX")
 	if err != nil {
 		return err
@@ -142,14 +145,14 @@ func (r *RedisStateSync) TryAcquire(shardID *string) error {
 	if res != "OK" {
 		return errors.New("Failed to acquire lock")
 	}
-	r.acquired = append(r.acquired, *shardID)
+	r.acquired[*shardID] = Unit{}
 	return nil
 }
 
 func (r *RedisStateSync) Reacquire() {
 	conn := r.pool.Get()
 	defer conn.Close()
-	for _, shardID := range r.acquired {
+	for shardID := range r.acquired {
 		res, err := conn.Do("PEXPIRE", r.redisPrefix+".lock."+shardID, r.alivePeriod/time.Millisecond, "NX")
 		if err != nil || res != "OK" {
 			if err != nil {
@@ -170,6 +173,7 @@ func (r *RedisStateSync) Reacquire() {
 func (r *RedisStateSync) Release(shardID *string) error {
 	conn := r.pool.Get()
 	defer conn.Close()
+	delete(r.acquired, *shardID)
 	key := r.redisPrefix + ".lock." + *shardID
 	res, err := redis.String(conn.Do("GET", key))
 	if err != nil {
