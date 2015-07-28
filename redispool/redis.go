@@ -1,4 +1,4 @@
-package main
+package redispool
 
 import (
 	"net/url"

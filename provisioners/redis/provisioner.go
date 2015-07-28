@@ -19,14 +19,23 @@ type Provisioner struct {
 	lock          string
 }
 
-func New(ttl time.Duration, redisPool *redis.Pool, prefix string) (*Provisioner, error) {
+func New(ttl time.Duration, redisPool *redis.Pool, prefix, lock string) (*Provisioner, error) {
+	if lock == "" {
+		return nil, errors.New("Lock cannot be empty")
+	}
+
 	return &Provisioner{
 		acquired:    make(map[string]bool),
+		heartbeats:  make(map[string]time.Time),
 		ttl:         ttl,
 		pool:        redisPool,
 		redisPrefix: prefix,
-		lock:        uuid.New(),
+		lock:        lock,
 	}, nil
+}
+
+func NewWithUUID(ttl time.Duration, redisPool *redis.Pool, prefix string) (*Provisioner, error) {
+	return New(ttl, redisPool, prefix, uuid.New())
 }
 
 func (p *Provisioner) TryAcquire(shardID string) error {
@@ -41,7 +50,7 @@ func (p *Provisioner) TryAcquire(shardID string) error {
 		return errors.New("Lock already acquired by this process")
 	}
 
-	res, err := conn.Do("SET", p.redisPrefix+":lock:"+shardID, p.lock, "PX", p.ttl/time.Millisecond, "NX")
+	res, err := conn.Do("SET", p.redisPrefix+":lock:"+shardID, p.lock, "PX", int64(p.ttl/time.Millisecond), "NX")
 	if err != nil {
 		return err
 	}
@@ -77,12 +86,24 @@ func (p *Provisioner) Release(shardID string) error {
 }
 
 func (p *Provisioner) Heartbeat(shardID string) error {
-	var lastHeartbeat time.Time
+	if !p.acquired[shardID] {
+		return errors.New("Cannot heartbeat on lock not originally acquired")
+	}
+
+	var (
+		lastHeartbeat time.Time
+		ok            bool
+	)
+
 	func() {
 		p.heartbeatsMut.RLock()
 		defer p.heartbeatsMut.RUnlock()
-		lastHeartbeat = p.heartbeats[shardID]
+		lastHeartbeat, ok = p.heartbeats[shardID]
 	}()
+
+	if !ok {
+		lastHeartbeat = time.Now().Add(-(p.ttl + time.Second))
+	}
 
 	now := time.Now()
 
@@ -105,7 +126,7 @@ func (p *Provisioner) Heartbeat(shardID string) error {
 		return errors.New("Lock changed")
 	}
 
-	res, err = conn.Do("PEXPIRE", lockKey, p.ttl/time.Millisecond)
+	res, err = conn.Do("PEXPIRE", lockKey, int64(p.ttl/time.Millisecond))
 	if err != nil {
 		err := p.TryAcquire(shardID)
 		if err != nil {

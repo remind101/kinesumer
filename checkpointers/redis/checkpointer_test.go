@@ -1,12 +1,12 @@
 package redischeckpointer
 
 import (
-	"net/url"
 	"testing"
 	"time"
 
 	"github.com/garyburd/redigo/redis"
 	k "github.com/remind101/kinesumer/interface"
+	"github.com/remind101/kinesumer/redispool"
 )
 
 type TestHandlers struct{}
@@ -19,57 +19,13 @@ func (h TestHandlers) Err(e k.Error) {
 	panic(e)
 }
 
-func newPool(server, password string) *redis.Pool {
-	return &redis.Pool{
-		MaxIdle:     10,
-		MaxActive:   100,
-		IdleTimeout: 240 * time.Second,
-		Dial: func() (redis.Conn, error) {
-			c, err := redis.Dial("tcp", server)
-			if err != nil {
-				return nil, err
-			}
-			if password != "" {
-				if _, err := c.Do("AUTH", password); err != nil {
-					c.Close()
-					return nil, err
-				}
-			}
-			return c, err
-		},
-		TestOnBorrow: func(c redis.Conn, t time.Time) error {
-			_, err := c.Do("PING")
-			return err
-		},
-	}
-}
-
-// redis://x:passwd@host:port
-func NewRedisPool(connstr string) (*redis.Pool, error) {
-
-	u, err := url.Parse(connstr)
-	if err != nil {
-		return nil, err
-	}
-
-	// auth if necessary
-	passwd := ""
-	if u.User != nil {
-		passwd, _ = u.User.Password()
-	}
-
-	pool := newPool(u.Host, passwd)
-
-	return pool, nil
-}
-
 var (
-	prefix      = "pusherman360:testing"
+	prefix      = "testing"
 	sequenceKey = prefix + ":sequence"
 )
 
 func makeCheckpointer() (*Checkpointer, error) {
-	pool, err := NewRedisPool("redis://127.0.0.1:6379")
+	pool, err := redispool.NewRedisPool("redis://127.0.0.1:6379")
 	if err != nil {
 		return nil, err
 	}
@@ -108,7 +64,7 @@ func TestRedisGoodLogin(t *testing.T) {
 	}
 }
 
-func TestRedisBeginEnd(t *testing.T) {
+func TestCheckpointerBeginEnd(t *testing.T) {
 	r := makeCheckpointerWithSamples()
 	err := r.Begin(TestHandlers{})
 	if err != nil {
@@ -117,7 +73,7 @@ func TestRedisBeginEnd(t *testing.T) {
 	r.End()
 }
 
-func TestGetStartSequence(t *testing.T) {
+func TestCheckpointerGetStartSequence(t *testing.T) {
 	r := makeCheckpointerWithSamples()
 	_ = r.Begin(TestHandlers{})
 	r.End()
@@ -128,7 +84,7 @@ func TestGetStartSequence(t *testing.T) {
 	}
 }
 
-func TestWriteAll(t *testing.T) {
+func TestCheckpointerSync(t *testing.T) {
 	r := makeCheckpointerWithSamples()
 	r.Begin(TestHandlers{})
 	r.heads["shard1"] = "1001"
