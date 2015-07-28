@@ -14,12 +14,12 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-func makeTestShardWorker() (*ShardWorker, *mocks.Kinesis, *mocks.Checkpointer, chan k.Unit,
-	chan k.Unit, chan *k.KinesisRecord) {
+func makeTestShardWorker() (*ShardWorker, *mocks.Kinesis, *mocks.Checkpointer, chan Unit,
+	chan Unit, chan *k.KinesisRecord) {
 	kin := new(mocks.Kinesis)
 	sssm := new(mocks.Checkpointer)
-	stop := make(chan k.Unit, 1)
-	stopped := make(chan k.Unit, 1)
+	stop := make(chan Unit, 1)
+	stopped := make(chan Unit, 1)
 	c := make(chan *k.KinesisRecord, 100)
 
 	return &ShardWorker{
@@ -106,7 +106,7 @@ func TestShardWorkerGetRecordsAndProcess(t *testing.T) {
 	assert.Equal(t, "123", *nextSeq)
 
 	err := awserr.New("bad", "bad", nil)
-	stp <- k.Unit{}
+	stp <- Unit{}
 	kin.On("GetRecords", mock.Anything).Return(&kinesis.GetRecordsOutput{
 		MillisBehindLatest: aws.Long(0),
 		NextShardIterator:  aws.String("AAAA"),
@@ -148,7 +148,7 @@ func TestShardWorkerRun(t *testing.T) {
 	}, awserr.Error(nil))
 	go func() {
 		time.Sleep(10 * time.Millisecond)
-		stp <- k.Unit{}
+		stp <- Unit{}
 	}()
 	s.RunWorker()
 	<-stpd

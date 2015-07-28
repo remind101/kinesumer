@@ -1,9 +1,14 @@
 package emptyprovisioner
 
+import (
+	k "github.com/remind101/kinesumer/interface"
+)
+
 type Provisioner struct {
 }
 
-func (l *Provisioner) Begin() {
+func (l *Provisioner) Begin(k.KinesumerHandlers) error {
+	return nil
 }
 
 func (l *Provisioner) End() {

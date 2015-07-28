@@ -20,8 +20,8 @@ type Kinesumer struct {
 	Stream       *string
 	Options      *KinesumerOptions
 	records      chan *k.KinesisRecord
-	stop         chan k.Unit
-	stopped      chan k.Unit
+	stop         chan Unit
+	stopped      chan Unit
 	nRunning     int
 	rand         *rand.Rand
 }
@@ -32,6 +32,7 @@ type KinesumerOptions struct {
 	GetRecordsLimit     int64
 	PollTime            int
 	MaxShardWorkers     int
+	Handlers            k.KinesumerHandlers
 }
 
 var DefaultKinesumerOptions = KinesumerOptions{
@@ -43,6 +44,7 @@ var DefaultKinesumerOptions = KinesumerOptions{
 	PollTime:            2000,
 
 	MaxShardWorkers: 50,
+	Handlers:        k.DefaultKinesumerHandlers{},
 }
 
 func NewDefaultKinesumer(awsAccessKey, awsSecretKey, awsRegion, stream string) (*Kinesumer, error) {
@@ -147,8 +149,7 @@ func (kin *Kinesumer) GetShards() (shards []*kinesis.Shard, err error) {
 func (kin *Kinesumer) LaunchShardWorker(shards []*kinesis.Shard) (int, error) {
 	perm := kin.rand.Perm(len(shards))
 	for _, j := range perm {
-		err := error(nil)
-		//err := kin.Checkpointer.TryAcquire(shards[j].ShardID)
+		err := kin.Provisioner.TryAcquire(shards[j].ShardID)
 		if err == nil {
 			worker := &ShardWorker{
 				kinesis:         kin.Kinesis,
@@ -161,7 +162,11 @@ func (kin *Kinesumer) LaunchShardWorker(shards []*kinesis.Shard) (int, error) {
 				c:               kin.records,
 				GetRecordsLimit: kin.Options.GetRecordsLimit,
 			}
-			go worker.RunWorker()
+			kin.Options.Handlers.Go(
+				func() {
+					worker.RunWorker()
+				},
+			)
 			kin.nRunning++
 			return j, nil
 		}
@@ -175,7 +180,7 @@ func (kin *Kinesumer) Begin() (err error) {
 		return
 	}
 
-	err = kin.Checkpointer.Begin(kin.records)
+	err = kin.Checkpointer.Begin(kin.Options.Handlers)
 	if err != nil {
 		return
 	}
@@ -185,8 +190,8 @@ func (kin *Kinesumer) Begin() (err error) {
 		n = len(shards)
 	}
 
-	kin.stop = make(chan k.Unit, kin.nRunning)
-	kin.stopped = make(chan k.Unit, kin.nRunning)
+	kin.stop = make(chan Unit, kin.nRunning)
+	kin.stopped = make(chan Unit, kin.nRunning)
 	for i := 0; i < n; i++ {
 		j, err := kin.LaunchShardWorker(shards)
 		if err != nil {
@@ -204,7 +209,7 @@ func (kin *Kinesumer) End() {
 		select {
 		case <-kin.stopped:
 			kin.nRunning--
-		case kin.stop <- k.Unit{}:
+		case kin.stop <- Unit{}:
 		}
 	}
 	kin.Checkpointer.End()

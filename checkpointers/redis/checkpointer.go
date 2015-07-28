@@ -11,13 +11,13 @@ import (
 type Checkpointer struct {
 	heads       map[string]string
 	c           chan *k.KinesisRecord
-	recs        chan<- *k.KinesisRecord
 	mut         sync.Mutex
 	pool        *redis.Pool
 	redisPrefix string
 	savePeriod  time.Duration
 	wg          sync.WaitGroup
 	modified    bool
+	handlers    k.KinesumerHandlers
 }
 
 type CheckpointerOptions struct {
@@ -49,9 +49,7 @@ func (r *Checkpointer) Sync() {
 		conn := r.pool.Get()
 		defer conn.Close()
 		if _, err := conn.Do("HMSET", redis.Args{r.redisPrefix + ":sequence"}.AddFlat(r.heads)...); err != nil {
-			r.recs <- &k.KinesisRecord{
-				Err: err,
-			}
+			// TODO: report err
 		}
 		r.modified = false
 	}
@@ -78,8 +76,9 @@ loop:
 	r.wg.Done()
 }
 
-func (r *Checkpointer) Begin(recs chan<- *k.KinesisRecord) error {
-	r.recs = recs
+func (r *Checkpointer) Begin(handlers k.KinesumerHandlers) error {
+	r.handlers = handlers
+
 	conn := r.pool.Get()
 	defer conn.Close()
 	res, err := conn.Do("HGETALL", r.redisPrefix+":sequence")

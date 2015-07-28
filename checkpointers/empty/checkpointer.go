@@ -11,7 +11,7 @@ func (p *Checkpointer) DoneC() chan<- *k.KinesisRecord {
 	return nil
 }
 
-func (p *Checkpointer) Begin(chan<- *k.KinesisRecord) error {
+func (p *Checkpointer) Begin(k.KinesumerHandlers) error {
 	return nil
 }
 

@@ -9,6 +9,16 @@ import (
 	k "github.com/remind101/kinesumer/interface"
 )
 
+type TestHandlers struct{}
+
+func (h TestHandlers) Go(f func()) {
+	go f()
+}
+
+func (h TestHandlers) Err(e *k.KinesumerError) {
+	panic(e)
+}
+
 func newPool(server, password string) *redis.Pool {
 	return &redis.Pool{
 		MaxIdle:     10,
@@ -100,8 +110,7 @@ func TestRedisGoodLogin(t *testing.T) {
 
 func TestRedisBeginEnd(t *testing.T) {
 	r := makeCheckpointerWithSamples()
-	c := make(chan *k.KinesisRecord)
-	err := r.Begin(c)
+	err := r.Begin(TestHandlers{})
 	if err != nil {
 		t.Error(err)
 	}
@@ -110,8 +119,7 @@ func TestRedisBeginEnd(t *testing.T) {
 
 func TestGetStartSequence(t *testing.T) {
 	r := makeCheckpointerWithSamples()
-	c := make(chan *k.KinesisRecord)
-	_ = r.Begin(c)
+	_ = r.Begin(TestHandlers{})
 	r.End()
 	shard1 := "shard1"
 	seq := r.GetStartSequence(&shard1)
@@ -122,14 +130,13 @@ func TestGetStartSequence(t *testing.T) {
 
 func TestWriteAll(t *testing.T) {
 	r := makeCheckpointerWithSamples()
-	c := make(chan *k.KinesisRecord)
-	r.Begin(c)
+	r.Begin(TestHandlers{})
 	r.heads["shard1"] = "1001"
 	r.heads["shard2"] = "2001"
 	r.Sync()
 	r.End()
 	r, _ = makeCheckpointer()
-	r.Begin(c)
+	r.Begin(TestHandlers{})
 	r.End()
 	if r.heads["shard1"] != "1001" {
 		t.Error("Expected sequence number to be written")

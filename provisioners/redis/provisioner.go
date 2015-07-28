@@ -26,7 +26,8 @@ func New() (*Provisioner, error) {
 	}, nil
 }
 
-func (p *Provisioner) Begin() {
+func (p *Provisioner) Begin() error {
+	return nil
 }
 
 func (p *Provisioner) End() {

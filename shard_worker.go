@@ -14,8 +14,8 @@ type ShardWorker struct {
 	stream          *string
 	pollTime        int
 	sequence        *string
-	stop            <-chan k.Unit
-	stopped         chan<- k.Unit
+	stop            <-chan Unit
+	stopped         chan<- Unit
 	c               chan *k.KinesisRecord
 	GetRecordsLimit int64
 }
@@ -89,7 +89,7 @@ func (s *ShardWorker) GetRecordsAndProcess(it, sequence *string) (cont bool, nex
 
 func (s *ShardWorker) RunWorker() {
 	defer func() {
-		s.stopped <- k.Unit{}
+		s.stopped <- Unit{}
 	}()
 
 	sequence := s.checkpointer.GetStartSequence(s.shard.ShardID)
