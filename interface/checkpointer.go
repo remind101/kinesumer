@@ -6,6 +6,4 @@ type Checkpointer interface {
 	End()
 	GetStartSequence(shardID *string) *string
 	Sync()
-	TryAcquire(shardID *string) error
-	Release(shardID *string) error
 }

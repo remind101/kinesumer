@@ -107,7 +107,8 @@ func (ki *Kinesumer) GetShards() (shards []*kinesis.Shard, err error) {
 func (ki *Kinesumer) LaunchShardWorker(shards []*kinesis.Shard) (int, error) {
 	perm := rand.Perm(len(shards))
 	for _, j := range perm {
-		err := ki.Checkpointer.TryAcquire(shards[j].ShardID)
+		err := error(nil)
+		//err := ki.Checkpointer.TryAcquire(shards[j].ShardID)
 		if err == nil {
 			worker := &ShardWorker{
 				kinesis:         ki.Kinesis,

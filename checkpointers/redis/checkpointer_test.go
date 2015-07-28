@@ -1,6 +1,7 @@
 package redischeckpointer
 
 import (
+	"net/url"
 	"testing"
 	"time"
 
@@ -8,34 +9,81 @@ import (
 	k "github.com/remind101/kinesumer/interface"
 )
 
+func newPool(server, password string) *redis.Pool {
+	return &redis.Pool{
+		MaxIdle:     10,
+		MaxActive:   100,
+		IdleTimeout: 240 * time.Second,
+		Dial: func() (redis.Conn, error) {
+			c, err := redis.Dial("tcp", server)
+			if err != nil {
+				return nil, err
+			}
+			if password != "" {
+				if _, err := c.Do("AUTH", password); err != nil {
+					c.Close()
+					return nil, err
+				}
+			}
+			return c, err
+		},
+		TestOnBorrow: func(c redis.Conn, t time.Time) error {
+			_, err := c.Do("PING")
+			return err
+		},
+	}
+}
+
+// redis://x:passwd@host:port
+func NewRedisPool(connstr string) (*redis.Pool, error) {
+
+	u, err := url.Parse(connstr)
+	if err != nil {
+		return nil, err
+	}
+
+	// auth if necessary
+	passwd := ""
+	if u.User != nil {
+		passwd, _ = u.User.Password()
+	}
+
+	pool := newPool(u.Host, passwd)
+
+	return pool, nil
+}
+
 var (
 	prefix      = "pusherman360:testing"
 	sequenceKey = prefix + ":sequence"
 )
 
-func makeRedisStateSync() (*RedisCheckpointer, error) {
-	r, err := NewRedisCheckpointer(&RedisCheckpointerOptions{
+func makeCheckpointer() (*Checkpointer, error) {
+	pool, err := NewRedisPool("redis://127.0.0.1:6379")
+	if err != nil {
+		return nil, err
+	}
+	r, err := NewRedisCheckpointer(&CheckpointerOptions{
 		SavePeriod:  time.Hour,
-		AlivePeriod: time.Hour,
-		RedisURL:    "redis://127.0.0.1:6379",
+		RedisPool:   pool,
 		RedisPrefix: prefix,
 	})
 	return r, err
 }
 
-func makeRedisStateSyncWithSamples() *RedisCheckpointer {
-	r, _ := makeRedisStateSync()
+func makeCheckpointerWithSamples() *Checkpointer {
+	r, _ := makeCheckpointer()
 	conn := r.pool.Get()
 	defer conn.Close()
 	conn.Do("DEL", sequenceKey)
 	conn.Do("HSET", sequenceKey, "shard1", "1000")
 	conn.Do("HSET", sequenceKey, "shard2", "2000")
-	r, _ = makeRedisStateSync()
+	r, _ = makeCheckpointer()
 	return r
 }
 
 func TestRedisGoodLogin(t *testing.T) {
-	r, err := makeRedisStateSync()
+	r, err := makeCheckpointer()
 	if err != nil {
 		t.Error("Failed to connect to redis at localhost:6379")
 	}
@@ -51,7 +99,7 @@ func TestRedisGoodLogin(t *testing.T) {
 }
 
 func TestRedisBeginEnd(t *testing.T) {
-	r := makeRedisStateSyncWithSamples()
+	r := makeCheckpointerWithSamples()
 	c := make(chan *k.KinesisRecord)
 	err := r.Begin(c)
 	if err != nil {
@@ -61,7 +109,7 @@ func TestRedisBeginEnd(t *testing.T) {
 }
 
 func TestGetStartSequence(t *testing.T) {
-	r := makeRedisStateSyncWithSamples()
+	r := makeCheckpointerWithSamples()
 	c := make(chan *k.KinesisRecord)
 	_ = r.Begin(c)
 	r.End()
@@ -73,14 +121,14 @@ func TestGetStartSequence(t *testing.T) {
 }
 
 func TestWriteAll(t *testing.T) {
-	r := makeRedisStateSyncWithSamples()
+	r := makeCheckpointerWithSamples()
 	c := make(chan *k.KinesisRecord)
 	r.Begin(c)
 	r.heads["shard1"] = "1001"
 	r.heads["shard2"] = "2001"
 	r.Sync()
 	r.End()
-	r, _ = makeRedisStateSync()
+	r, _ = makeCheckpointer()
 	r.Begin(c)
 	r.End()
 	if r.heads["shard1"] != "1001" {

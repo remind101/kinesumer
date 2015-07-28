@@ -1,6 +1,6 @@
 package kinesumeriface
 
-type Lifechecker interface {
+type Provisioner interface {
 	Begin()
 	End()
 	TryAcquire(shardID *string) error
