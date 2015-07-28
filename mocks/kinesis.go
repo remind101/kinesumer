@@ -1,15 +1,28 @@
 package mocks
 
-import (
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/kinesis"
-	"github.com/stretchr/testify/mock"
-)
+import "github.com/stretchr/testify/mock"
+
+import "github.com/aws/aws-sdk-go/aws"
+import "github.com/aws/aws-sdk-go/service/kinesis"
 
 type Kinesis struct {
 	mock.Mock
 }
 
+func (m *Kinesis) AddTagsToStreamRequest(_a0 *kinesis.AddTagsToStreamInput) (*aws.Request, *kinesis.AddTagsToStreamOutput) {
+	ret := m.Called(_a0)
+
+	var r0 *aws.Request
+	if ret.Get(0) != nil {
+		r0 = ret.Get(0).(*aws.Request)
+	}
+	var r1 *kinesis.AddTagsToStreamOutput
+	if ret.Get(1) != nil {
+		r1 = ret.Get(1).(*kinesis.AddTagsToStreamOutput)
+	}
+
+	return r0, r1
+}
 func (m *Kinesis) AddTagsToStream(_a0 *kinesis.AddTagsToStreamInput) (*kinesis.AddTagsToStreamOutput, error) {
 	ret := m.Called(_a0)
 
@@ -18,6 +31,20 @@ func (m *Kinesis) AddTagsToStream(_a0 *kinesis.AddTagsToStreamInput) (*kinesis.A
 		r0 = ret.Get(0).(*kinesis.AddTagsToStreamOutput)
 	}
 	r1 := ret.Error(1)
+
+	return r0, r1
+}
+func (m *Kinesis) CreateStreamRequest(_a0 *kinesis.CreateStreamInput) (*aws.Request, *kinesis.CreateStreamOutput) {
+	ret := m.Called(_a0)
+
+	var r0 *aws.Request
+	if ret.Get(0) != nil {
+		r0 = ret.Get(0).(*aws.Request)
+	}
+	var r1 *kinesis.CreateStreamOutput
+	if ret.Get(1) != nil {
+		r1 = ret.Get(1).(*kinesis.CreateStreamOutput)
+	}
 
 	return r0, r1
 }
@@ -32,6 +59,20 @@ func (m *Kinesis) CreateStream(_a0 *kinesis.CreateStreamInput) (*kinesis.CreateS
 
 	return r0, r1
 }
+func (m *Kinesis) DeleteStreamRequest(_a0 *kinesis.DeleteStreamInput) (*aws.Request, *kinesis.DeleteStreamOutput) {
+	ret := m.Called(_a0)
+
+	var r0 *aws.Request
+	if ret.Get(0) != nil {
+		r0 = ret.Get(0).(*aws.Request)
+	}
+	var r1 *kinesis.DeleteStreamOutput
+	if ret.Get(1) != nil {
+		r1 = ret.Get(1).(*kinesis.DeleteStreamOutput)
+	}
+
+	return r0, r1
+}
 func (m *Kinesis) DeleteStream(_a0 *kinesis.DeleteStreamInput) (*kinesis.DeleteStreamOutput, error) {
 	ret := m.Called(_a0)
 
@@ -40,6 +81,20 @@ func (m *Kinesis) DeleteStream(_a0 *kinesis.DeleteStreamInput) (*kinesis.DeleteS
 		r0 = ret.Get(0).(*kinesis.DeleteStreamOutput)
 	}
 	r1 := ret.Error(1)
+
+	return r0, r1
+}
+func (m *Kinesis) DescribeStreamRequest(_a0 *kinesis.DescribeStreamInput) (*aws.Request, *kinesis.DescribeStreamOutput) {
+	ret := m.Called(_a0)
+
+	var r0 *aws.Request
+	if ret.Get(0) != nil {
+		r0 = ret.Get(0).(*aws.Request)
+	}
+	var r1 *kinesis.DescribeStreamOutput
+	if ret.Get(1) != nil {
+		r1 = ret.Get(1).(*kinesis.DescribeStreamOutput)
+	}
 
 	return r0, r1
 }
@@ -86,7 +141,7 @@ func (m *Kinesis) DescribeStreamPages(_a0 *kinesis.DescribeStreamInput, _a1 func
 	cont := _a1(
 		&kinesis.DescribeStreamOutput{
 			StreamDescription: &kinesis.StreamDescription{
-				HasMoreShards: aws.Boolean(true),
+				HasMoreShards: aws.Bool(true),
 				Shards:        []*kinesis.Shard{&a},
 				StreamName:    aws.String("TestStream"),
 				StreamStatus:  aws.String("ACTIVE"),
@@ -96,7 +151,7 @@ func (m *Kinesis) DescribeStreamPages(_a0 *kinesis.DescribeStreamInput, _a1 func
 		_a1(
 			&kinesis.DescribeStreamOutput{
 				StreamDescription: &kinesis.StreamDescription{
-					HasMoreShards: aws.Boolean(true),
+					HasMoreShards: aws.Bool(true),
 					Shards:        []*kinesis.Shard{&b},
 					StreamName:    aws.String("TestStream"),
 					StreamStatus:  aws.String("ACTIVE"),
@@ -106,6 +161,20 @@ func (m *Kinesis) DescribeStreamPages(_a0 *kinesis.DescribeStreamInput, _a1 func
 	r0 := ret.Error(0)
 
 	return r0
+}
+func (m *Kinesis) GetRecordsRequest(_a0 *kinesis.GetRecordsInput) (*aws.Request, *kinesis.GetRecordsOutput) {
+	ret := m.Called(_a0)
+
+	var r0 *aws.Request
+	if ret.Get(0) != nil {
+		r0 = ret.Get(0).(*aws.Request)
+	}
+	var r1 *kinesis.GetRecordsOutput
+	if ret.Get(1) != nil {
+		r1 = ret.Get(1).(*kinesis.GetRecordsOutput)
+	}
+
+	return r0, r1
 }
 func (m *Kinesis) GetRecords(_a0 *kinesis.GetRecordsInput) (*kinesis.GetRecordsOutput, error) {
 	ret := m.Called(_a0)
@@ -118,6 +187,20 @@ func (m *Kinesis) GetRecords(_a0 *kinesis.GetRecordsInput) (*kinesis.GetRecordsO
 
 	return r0, r1
 }
+func (m *Kinesis) GetShardIteratorRequest(_a0 *kinesis.GetShardIteratorInput) (*aws.Request, *kinesis.GetShardIteratorOutput) {
+	ret := m.Called(_a0)
+
+	var r0 *aws.Request
+	if ret.Get(0) != nil {
+		r0 = ret.Get(0).(*aws.Request)
+	}
+	var r1 *kinesis.GetShardIteratorOutput
+	if ret.Get(1) != nil {
+		r1 = ret.Get(1).(*kinesis.GetShardIteratorOutput)
+	}
+
+	return r0, r1
+}
 func (m *Kinesis) GetShardIterator(_a0 *kinesis.GetShardIteratorInput) (*kinesis.GetShardIteratorOutput, error) {
 	ret := m.Called(_a0)
 
@@ -126,6 +209,20 @@ func (m *Kinesis) GetShardIterator(_a0 *kinesis.GetShardIteratorInput) (*kinesis
 		r0 = ret.Get(0).(*kinesis.GetShardIteratorOutput)
 	}
 	r1 := ret.Error(1)
+
+	return r0, r1
+}
+func (m *Kinesis) ListStreamsRequest(_a0 *kinesis.ListStreamsInput) (*aws.Request, *kinesis.ListStreamsOutput) {
+	ret := m.Called(_a0)
+
+	var r0 *aws.Request
+	if ret.Get(0) != nil {
+		r0 = ret.Get(0).(*aws.Request)
+	}
+	var r1 *kinesis.ListStreamsOutput
+	if ret.Get(1) != nil {
+		r1 = ret.Get(1).(*kinesis.ListStreamsOutput)
+	}
 
 	return r0, r1
 }
@@ -144,18 +241,32 @@ func (m *Kinesis) ListStreamsPages(_a0 *kinesis.ListStreamsInput, _a1 func(*kine
 	ret := m.Called(_a0, _a1)
 
 	cont := _a1(&kinesis.ListStreamsOutput{
-		HasMoreStreams: aws.Boolean(true),
+		HasMoreStreams: aws.Bool(true),
 		StreamNames:    []*string{aws.String("a"), aws.String("b")},
 	}, true)
 	if cont {
 		_a1(&kinesis.ListStreamsOutput{
-			HasMoreStreams: aws.Boolean(false),
+			HasMoreStreams: aws.Bool(false),
 			StreamNames:    []*string{aws.String("c")},
 		}, false)
 	}
 	r0 := ret.Error(0)
 
 	return r0
+}
+func (m *Kinesis) ListTagsForStreamRequest(_a0 *kinesis.ListTagsForStreamInput) (*aws.Request, *kinesis.ListTagsForStreamOutput) {
+	ret := m.Called(_a0)
+
+	var r0 *aws.Request
+	if ret.Get(0) != nil {
+		r0 = ret.Get(0).(*aws.Request)
+	}
+	var r1 *kinesis.ListTagsForStreamOutput
+	if ret.Get(1) != nil {
+		r1 = ret.Get(1).(*kinesis.ListTagsForStreamOutput)
+	}
+
+	return r0, r1
 }
 func (m *Kinesis) ListTagsForStream(_a0 *kinesis.ListTagsForStreamInput) (*kinesis.ListTagsForStreamOutput, error) {
 	ret := m.Called(_a0)
@@ -165,6 +276,20 @@ func (m *Kinesis) ListTagsForStream(_a0 *kinesis.ListTagsForStreamInput) (*kines
 		r0 = ret.Get(0).(*kinesis.ListTagsForStreamOutput)
 	}
 	r1 := ret.Error(1)
+
+	return r0, r1
+}
+func (m *Kinesis) MergeShardsRequest(_a0 *kinesis.MergeShardsInput) (*aws.Request, *kinesis.MergeShardsOutput) {
+	ret := m.Called(_a0)
+
+	var r0 *aws.Request
+	if ret.Get(0) != nil {
+		r0 = ret.Get(0).(*aws.Request)
+	}
+	var r1 *kinesis.MergeShardsOutput
+	if ret.Get(1) != nil {
+		r1 = ret.Get(1).(*kinesis.MergeShardsOutput)
+	}
 
 	return r0, r1
 }
@@ -179,6 +304,20 @@ func (m *Kinesis) MergeShards(_a0 *kinesis.MergeShardsInput) (*kinesis.MergeShar
 
 	return r0, r1
 }
+func (m *Kinesis) PutRecordRequest(_a0 *kinesis.PutRecordInput) (*aws.Request, *kinesis.PutRecordOutput) {
+	ret := m.Called(_a0)
+
+	var r0 *aws.Request
+	if ret.Get(0) != nil {
+		r0 = ret.Get(0).(*aws.Request)
+	}
+	var r1 *kinesis.PutRecordOutput
+	if ret.Get(1) != nil {
+		r1 = ret.Get(1).(*kinesis.PutRecordOutput)
+	}
+
+	return r0, r1
+}
 func (m *Kinesis) PutRecord(_a0 *kinesis.PutRecordInput) (*kinesis.PutRecordOutput, error) {
 	ret := m.Called(_a0)
 
@@ -187,6 +326,20 @@ func (m *Kinesis) PutRecord(_a0 *kinesis.PutRecordInput) (*kinesis.PutRecordOutp
 		r0 = ret.Get(0).(*kinesis.PutRecordOutput)
 	}
 	r1 := ret.Error(1)
+
+	return r0, r1
+}
+func (m *Kinesis) PutRecordsRequest(_a0 *kinesis.PutRecordsInput) (*aws.Request, *kinesis.PutRecordsOutput) {
+	ret := m.Called(_a0)
+
+	var r0 *aws.Request
+	if ret.Get(0) != nil {
+		r0 = ret.Get(0).(*aws.Request)
+	}
+	var r1 *kinesis.PutRecordsOutput
+	if ret.Get(1) != nil {
+		r1 = ret.Get(1).(*kinesis.PutRecordsOutput)
+	}
 
 	return r0, r1
 }
@@ -201,6 +354,20 @@ func (m *Kinesis) PutRecords(_a0 *kinesis.PutRecordsInput) (*kinesis.PutRecordsO
 
 	return r0, r1
 }
+func (m *Kinesis) RemoveTagsFromStreamRequest(_a0 *kinesis.RemoveTagsFromStreamInput) (*aws.Request, *kinesis.RemoveTagsFromStreamOutput) {
+	ret := m.Called(_a0)
+
+	var r0 *aws.Request
+	if ret.Get(0) != nil {
+		r0 = ret.Get(0).(*aws.Request)
+	}
+	var r1 *kinesis.RemoveTagsFromStreamOutput
+	if ret.Get(1) != nil {
+		r1 = ret.Get(1).(*kinesis.RemoveTagsFromStreamOutput)
+	}
+
+	return r0, r1
+}
 func (m *Kinesis) RemoveTagsFromStream(_a0 *kinesis.RemoveTagsFromStreamInput) (*kinesis.RemoveTagsFromStreamOutput, error) {
 	ret := m.Called(_a0)
 
@@ -209,6 +376,20 @@ func (m *Kinesis) RemoveTagsFromStream(_a0 *kinesis.RemoveTagsFromStreamInput) (
 		r0 = ret.Get(0).(*kinesis.RemoveTagsFromStreamOutput)
 	}
 	r1 := ret.Error(1)
+
+	return r0, r1
+}
+func (m *Kinesis) SplitShardRequest(_a0 *kinesis.SplitShardInput) (*aws.Request, *kinesis.SplitShardOutput) {
+	ret := m.Called(_a0)
+
+	var r0 *aws.Request
+	if ret.Get(0) != nil {
+		r0 = ret.Get(0).(*aws.Request)
+	}
+	var r1 *kinesis.SplitShardOutput
+	if ret.Get(1) != nil {
+		r1 = ret.Get(1).(*kinesis.SplitShardOutput)
+	}
 
 	return r0, r1
 }
