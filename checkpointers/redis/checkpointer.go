@@ -10,7 +10,7 @@ import (
 
 type Checkpointer struct {
 	heads       map[string]string
-	c           chan *k.KinesisRecord
+	c           chan k.Record
 	mut         sync.Mutex
 	pool        *redis.Pool
 	redisPrefix string
@@ -29,7 +29,7 @@ type CheckpointerOptions struct {
 func NewRedisCheckpointer(opt *CheckpointerOptions) (*Checkpointer, error) {
 	return &Checkpointer{
 		heads:       make(map[string]string),
-		c:           make(chan *k.KinesisRecord),
+		c:           make(chan k.Record),
 		mut:         sync.Mutex{},
 		pool:        opt.RedisPool,
 		redisPrefix: opt.RedisPrefix,
@@ -38,7 +38,7 @@ func NewRedisCheckpointer(opt *CheckpointerOptions) (*Checkpointer, error) {
 	}, nil
 }
 
-func (r *Checkpointer) DoneC() chan<- *k.KinesisRecord {
+func (r *Checkpointer) DoneC() chan<- k.Record {
 	return r.c
 }
 
@@ -67,7 +67,7 @@ loop:
 				break loop
 			}
 			r.mut.Lock()
-			r.heads[*state.ShardID] = *state.Record.SequenceNumber
+			r.heads[state.ShardID()] = state.SequenceNumber()
 			r.modified = true
 			r.mut.Unlock()
 		}

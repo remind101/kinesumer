@@ -7,7 +7,7 @@ import (
 type Checkpointer struct {
 }
 
-func (p Checkpointer) DoneC() chan<- *k.KinesisRecord {
+func (p Checkpointer) DoneC() chan<- k.Record {
 	return nil
 }
 

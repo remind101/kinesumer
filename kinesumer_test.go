@@ -24,7 +24,9 @@ func makeTestKinesumer(t *testing.T) (*Kinesumer, *mocks.Kinesis, *mocks.Checkpo
 		prov,
 		rand.NewSource(0),
 		"TestStream",
-		nil,
+		&KinesumerOptions{
+			Handlers: testHandlers{},
+		},
 	)
 	if err != nil {
 		t.Error(err)
@@ -71,9 +73,11 @@ func TestKinesumerBeginEnd(t *testing.T) {
 	err := k.Begin()
 	assert.Error(t, err)
 
+	resetTestHandlers()
 	prov.On("TTL").Return(time.Millisecond * 10)
 	prov.On("TryAcquire", mock.Anything).Return(nil)
 	prov.On("Heartbeat", mock.Anything).Return(nil)
+	prov.On("Release", mock.Anything).Return(nil)
 	kin.On("DescribeStreamPages", mock.Anything, mock.Anything).Return(awserr.Error(nil))
 	sssm.On("Begin", mock.Anything).Return(nil)
 	sssm.On("GetStartSequence", mock.Anything).Return(aws.String("0")).Once()
@@ -90,5 +94,9 @@ func TestKinesumerBeginEnd(t *testing.T) {
 	sssm.On("End").Return()
 	assert.Nil(t, k.Begin())
 	assert.Equal(t, 2, k.nRunning)
+	assert.Equal(t, 2, len(toRun))
+	for _, f := range toRun {
+		go f()
+	}
 	k.End()
 }

@@ -14,24 +14,14 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-type TestHandlers struct{}
-
-func (t TestHandlers) Go(f func()) {
-	f()
-}
-
-func (t TestHandlers) Err(e *k.KinesumerError) {
-	panic(e)
-}
-
 func makeTestShardWorker() (*ShardWorker, *mocks.Kinesis, *mocks.Checkpointer, *mocks.Provisioner,
-	chan Unit, chan Unit, chan *k.KinesisRecord) {
+	chan Unit, chan Unit, chan k.Record) {
 	kin := new(mocks.Kinesis)
 	sssm := new(mocks.Checkpointer)
 	prov := new(mocks.Provisioner)
 	stop := make(chan Unit, 1)
 	stopped := make(chan Unit, 1)
-	c := make(chan *k.KinesisRecord, 100)
+	c := make(chan k.Record, 100)
 
 	return &ShardWorker{
 		kinesis: kin,
@@ -55,7 +45,7 @@ func makeTestShardWorker() (*ShardWorker, *mocks.Kinesis, *mocks.Checkpointer, *
 		stopped:         stopped,
 		c:               c,
 		provisioner:     prov,
-		handlers:        TestHandlers{},
+		handlers:        testHandlers{},
 		GetRecordsLimit: 123,
 	}, kin, sssm, prov, stop, stopped, c
 }
@@ -111,15 +101,16 @@ func TestShardWorkerGetRecordsAndProcess(t *testing.T) {
 		NextShardIterator:  aws.String("AAAA"),
 		Records:            []*kinesis.Record{&record1},
 	}, awserr.Error(nil)).Once()
-	doneC := make(chan *k.KinesisRecord)
+	doneC := make(chan k.Record)
 	sssm.On("DoneC").Return(doneC)
 	brk, nextIt, nextSeq := s.GetRecordsAndProcess(aws.String("AAAA"), aws.String("123"))
 	rec := <-c
-	assert.Equal(t, record1, rec.Record)
+	assert.Equal(t, record1.Data, rec.Data())
 	assert.False(t, brk)
 	assert.Equal(t, "AAAA", *nextIt)
 	assert.Equal(t, "123", *nextSeq)
 
+	resetTestHandlers()
 	err := awserr.New("bad", "bad", nil)
 	stp <- Unit{}
 	kin.On("GetRecords", mock.Anything).Return(&kinesis.GetRecordsOutput{
@@ -131,8 +122,7 @@ func TestShardWorkerGetRecordsAndProcess(t *testing.T) {
 		ShardIterator: aws.String("AAAA"),
 	}, awserr.Error(nil))
 	brk, nextIt, nextSeq = s.GetRecordsAndProcess(aws.String("AAAA"), aws.String("123"))
-	rec = <-c
-	assert.Equal(t, err, rec.Err)
+	assert.Equal(t, err, errs[0].Origin)
 	kin.AssertNumberOfCalls(t, "GetShardIterator", 1)
 	assert.True(t, brk)
 }
@@ -141,8 +131,10 @@ func TestShardWorkerRun(t *testing.T) {
 	s, kin, sssm, prov, stp, stpd, c := makeTestShardWorker()
 
 	prov.On("Heartbeat", mock.Anything).Return(nil)
+	prov.On("Release", mock.Anything).Return(nil)
 	sssm.On("GetStartSequence", mock.Anything).Return(aws.String("AAAA"))
 
+	resetTestHandlers()
 	record1 := kinesis.Record{
 		Data:           []byte("help I'm trapped"),
 		PartitionKey:   aws.String("aaaa"),
@@ -158,7 +150,7 @@ func TestShardWorkerRun(t *testing.T) {
 		NextShardIterator:  aws.String("AAAA"),
 		Records:            []*kinesis.Record{},
 	}, awserr.Error(nil))
-	doneC := make(chan *k.KinesisRecord)
+	doneC := make(chan k.Record)
 	sssm.On("DoneC").Return(doneC)
 	kin.On("GetShardIterator", mock.Anything).Return(&kinesis.GetShardIteratorOutput{
 		ShardIterator: aws.String("AAAA"),
@@ -170,5 +162,5 @@ func TestShardWorkerRun(t *testing.T) {
 	s.RunWorker()
 	<-stpd
 	rec := <-c
-	assert.Equal(t, record1, rec.Record)
+	assert.Equal(t, record1.Data, rec.Data())
 }

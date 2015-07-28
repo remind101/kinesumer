@@ -2,10 +2,8 @@ package main
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/codegangsta/cli"
-	"github.com/fatih/color"
 	"github.com/remind101/kinesumer"
 )
 
@@ -38,13 +36,6 @@ func runTail(ctx *cli.Context) {
 	defer k.End()
 	for {
 		rec := <-k.Records()
-		if rec.Err != nil {
-			fmt.Fprintln(os.Stdout, color.YellowString(rec.Err.Error()))
-			if rec.ShardID != nil {
-				fmt.Fprintln(os.Stdout, color.YellowString(fmt.Sprintf("at shard %v", *rec.ShardID)))
-			}
-		} else {
-			fmt.Println(string(rec.Data))
-		}
+		fmt.Println(string(rec.Data()))
 	}
 }

@@ -19,7 +19,7 @@ type Kinesumer struct {
 	Provisioner  k.Provisioner
 	Stream       *string
 	Options      *KinesumerOptions
-	records      chan *k.KinesisRecord
+	records      chan k.Record
 	stop         chan Unit
 	stopped      chan Unit
 	nRunning     int
@@ -97,7 +97,7 @@ func NewKinesumer(kinesis k.Kinesis, checkpointer k.Checkpointer, provisioner k.
 		Provisioner:  provisioner,
 		Stream:       &stream,
 		Options:      opt,
-		records:      make(chan *k.KinesisRecord, opt.GetRecordsLimit*2+10),
+		records:      make(chan k.Record, opt.GetRecordsLimit*2+10),
 		rand:         rand.New(randSource),
 	}, nil
 }
@@ -221,6 +221,6 @@ func (kin *Kinesumer) End() {
 	kin.Checkpointer.End()
 }
 
-func (kin *Kinesumer) Records() <-chan *k.KinesisRecord {
+func (kin *Kinesumer) Records() <-chan k.Record {
 	return kin.records
 }

@@ -9,12 +9,12 @@ type Checkpointer struct {
 	mock.Mock
 }
 
-func (m *Checkpointer) DoneC() chan<- *k.KinesisRecord {
+func (m *Checkpointer) DoneC() chan<- k.Record {
 	ret := m.Called()
 
-	var r0 chan *k.KinesisRecord
+	var r0 chan k.Record
 	if ret.Get(0) != nil {
-		r0 = ret.Get(0).(chan *k.KinesisRecord)
+		r0 = ret.Get(0).(chan k.Record)
 	}
 
 	return r0
