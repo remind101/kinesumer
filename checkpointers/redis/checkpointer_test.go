@@ -15,7 +15,7 @@ func (h TestHandlers) Go(f func()) {
 	go f()
 }
 
-func (h TestHandlers) Err(e *k.KinesumerError) {
+func (h TestHandlers) Err(e k.Error) {
 	panic(e)
 }
 

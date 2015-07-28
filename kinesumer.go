@@ -67,7 +67,7 @@ func NewKinesumer(kinesis k.Kinesis, checkpointer k.Checkpointer, provisioner k.
 	randSource rand.Source, stream string, opt *KinesumerOptions) (*Kinesumer, error) {
 
 	if kinesis == nil {
-		return nil, k.NewKinesumerError(k.KinesumerECrit, "Kinesis object must not be nil", nil)
+		return nil, NewError(KinesumerECrit, "Kinesis object must not be nil", nil)
 	}
 
 	if checkpointer == nil {
@@ -83,7 +83,7 @@ func NewKinesumer(kinesis k.Kinesis, checkpointer k.Checkpointer, provisioner k.
 	}
 
 	if len(stream) == 0 {
-		return nil, k.NewKinesumerError(k.KinesumerECrit, "Stream name can't be empty", nil)
+		return nil, NewError(KinesumerECrit, "Stream name can't be empty", nil)
 	}
 
 	if opt == nil {
@@ -199,7 +199,7 @@ func (kin *Kinesumer) Begin() (err error) {
 		for i := 0; i < n; i++ {
 			j, err := kin.LaunchShardWorker(shards)
 			if err != nil {
-				kin.Options.Handlers.Err(k.NewKinesumerError(k.KinesumerEWarn, "Could not start shard worker", err))
+				kin.Options.Handlers.Err(NewError(KinesumerEWarn, "Could not start shard worker", err))
 			} else {
 				shards = append(shards[:j], shards[j+1:]...)
 			}

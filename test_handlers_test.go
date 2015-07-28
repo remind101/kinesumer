@@ -6,11 +6,11 @@ import (
 
 type testHandlers struct{}
 
-var errs = make([]*k.KinesumerError, 0)
+var errs = make([]k.Error, 0)
 var toRun = make([]func(), 0)
 
 func resetTestHandlers() {
-	errs = make([]*k.KinesumerError, 0)
+	errs = make([]k.Error, 0)
 	toRun = make([]func(), 0)
 }
 
@@ -18,6 +18,6 @@ func (t testHandlers) Go(f func()) {
 	toRun = append(toRun, f)
 }
 
-func (t testHandlers) Err(e *k.KinesumerError) {
+func (t testHandlers) Err(e k.Error) {
 	errs = append(errs, e)
 }

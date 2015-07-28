@@ -7,7 +7,6 @@ import (
 
 	"github.com/garyburd/redigo/redis"
 	"github.com/pborman/uuid" // Exported from code.google.com/p/go-uuid/uuid
-	k "github.com/remind101/kinesumer/interface"
 )
 
 type Provisioner struct {
@@ -99,7 +98,7 @@ func (p *Provisioner) Heartbeat(shardID string) error {
 
 	lock, err := redis.String(res, err)
 	if lock != p.lock {
-		return k.NewKinesumerError(k.KinesumerEError, "Lock changed", nil)
+		return errors.New("Lock changed")
 	}
 
 	res, err = conn.Do("PEXPIRE", lockKey, p.ttl/time.Millisecond)

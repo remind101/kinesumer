@@ -122,7 +122,7 @@ func TestShardWorkerGetRecordsAndProcess(t *testing.T) {
 		ShardIterator: aws.String("AAAA"),
 	}, awserr.Error(nil))
 	brk, nextIt, nextSeq = s.GetRecordsAndProcess(aws.String("AAAA"), aws.String("123"))
-	assert.Equal(t, err, errs[0].Origin)
+	assert.Equal(t, err, errs[0].Origin())
 	kin.AssertNumberOfCalls(t, "GetShardIterator", 1)
 	assert.True(t, brk)
 }

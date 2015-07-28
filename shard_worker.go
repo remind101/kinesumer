@@ -58,12 +58,12 @@ func (s *ShardWorker) GetRecordsAndProcess(it, sequence *string) (cont bool, nex
 	records, nextIt, lag, err := s.GetRecords(it)
 	if err != nil || len(records) == 0 {
 		if err != nil {
-			s.handlers.Err(k.NewKinesumerError(k.KinesumerEWarn, "GetRecords failed", err))
+			s.handlers.Err(NewError(KinesumerEWarn, "GetRecords failed", err))
 			nextIt = s.TryGetShardIterator("AFTER_SEQUENCE_NUMBER", sequence)
 		}
 
 		if err := s.provisioner.Heartbeat(*s.shard.ShardID); err != nil {
-			s.handlers.Err(k.NewKinesumerError(k.KinesumerEError, "Heartbeat failed", err))
+			s.handlers.Err(NewError(KinesumerEError, "Heartbeat failed", err))
 			return true, nil, sequence
 		}
 		// GetRecords is not guaranteed to return records even if there are records to be read.
@@ -88,7 +88,7 @@ func (s *ShardWorker) GetRecordsAndProcess(it, sequence *string) (cont bool, nex
 			}
 
 			if err := s.provisioner.Heartbeat(*s.shard.ShardID); err != nil {
-				s.handlers.Err(k.NewKinesumerError(k.KinesumerEError, "Heartbeat failed", err))
+				s.handlers.Err(NewError(KinesumerEError, "Heartbeat failed", err))
 				return true, nil, sequence
 			}
 		}
@@ -109,7 +109,7 @@ func (s *ShardWorker) RunWorker() {
 	if sequence == nil || len(*sequence) == 0 {
 		sequence = s.shard.SequenceNumberRange.StartingSequenceNumber
 
-		s.handlers.Err(k.NewKinesumerError(k.KinesumerEWarn, "Using TRIM_HORIZON", nil))
+		s.handlers.Err(NewError(KinesumerEWarn, "Using TRIM_HORIZON", nil))
 		it = s.TryGetShardIterator("TRIM_HORIZON", nil)
 	} else {
 		it = s.TryGetShardIterator("AFTER_SEQUENCE_NUMBER", sequence)
@@ -118,12 +118,12 @@ func (s *ShardWorker) RunWorker() {
 loop:
 	for {
 		if err := s.provisioner.Heartbeat(*s.shard.ShardID); err != nil {
-			s.handlers.Err(k.NewKinesumerError(k.KinesumerEError, "Heartbeat failed", err))
+			s.handlers.Err(NewError(KinesumerEError, "Heartbeat failed", err))
 			break loop
 		}
 
 		if end != nil && *sequence == *end {
-			s.handlers.Err(k.NewKinesumerError(k.KinesumerEWarn, "Shard has reached its end", nil))
+			s.handlers.Err(NewError(KinesumerEWarn, "Shard has reached its end", nil))
 			break loop
 		}
 
