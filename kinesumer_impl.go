@@ -8,16 +8,17 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/service/kinesis"
+	k "github.com/remind101/kinesumer/interface"
 )
 
 type KinesumerImpl struct {
-	Kinesis      Kinesis
-	Checkpointer Checkpointer
+	Kinesis      k.Kinesis
+	Checkpointer k.Checkpointer
 	Stream       *string
 	opt          *KinesumerOptions
-	records      chan *KinesisRecord
-	stop         chan Unit
-	stopped      chan Unit
+	records      chan *k.KinesisRecord
+	stop         chan k.Unit
+	stopped      chan k.Unit
 	nRunning     int
 }
 
@@ -68,20 +69,20 @@ func NewDefaultRedisKinesumer(awsAccessKey, awsSecretKey, awsRegion, redisURL, s
 		&DefaultKinesumerOptions)
 }
 
-func NewKinesumer(kinesis Kinesis, checkpointer Checkpointer, stream string, opt *KinesumerOptions) (*KinesumerImpl, error) {
+func NewKinesumer(kinesis k.Kinesis, checkpointer k.Checkpointer, stream string, opt *KinesumerOptions) (*KinesumerImpl, error) {
 	return &KinesumerImpl{
 		Kinesis:      kinesis,
 		Checkpointer: checkpointer,
 		Stream:       &stream,
 		opt:          opt,
-		records:      make(chan *KinesisRecord, opt.GetRecordsLimit*2+10),
+		records:      make(chan *k.KinesisRecord, opt.GetRecordsLimit*2+10),
 	}, nil
 }
 
-func (k *KinesumerImpl) GetStreams() (streams []*string, err error) {
+func (ki *KinesumerImpl) GetStreams() (streams []*string, err error) {
 	streams = make([]*string, 0)
-	err = k.Kinesis.ListStreamsPages(&kinesis.ListStreamsInput{
-		Limit: &k.opt.ListStreamsLimit,
+	err = ki.Kinesis.ListStreamsPages(&kinesis.ListStreamsInput{
+		Limit: &ki.opt.ListStreamsLimit,
 	}, func(sts *kinesis.ListStreamsOutput, _ bool) bool {
 		streams = append(streams, sts.StreamNames...)
 		return true
@@ -89,24 +90,24 @@ func (k *KinesumerImpl) GetStreams() (streams []*string, err error) {
 	return
 }
 
-func (k *KinesumerImpl) StreamExists() (found bool, err error) {
-	streams, err := k.GetStreams()
+func (ki *KinesumerImpl) StreamExists() (found bool, err error) {
+	streams, err := ki.GetStreams()
 	if err != nil {
 		return
 	}
 	for _, stream := range streams {
-		if *stream == *k.Stream {
+		if *stream == *ki.Stream {
 			return true, nil
 		}
 	}
 	return
 }
 
-func (k *KinesumerImpl) GetShards() (shards []*kinesis.Shard, err error) {
+func (ki *KinesumerImpl) GetShards() (shards []*kinesis.Shard, err error) {
 	shards = make([]*kinesis.Shard, 0)
-	err = k.Kinesis.DescribeStreamPages(&kinesis.DescribeStreamInput{
-		Limit:      &k.opt.DescribeStreamLimit,
-		StreamName: k.Stream,
+	err = ki.Kinesis.DescribeStreamPages(&kinesis.DescribeStreamInput{
+		Limit:      &ki.opt.DescribeStreamLimit,
+		StreamName: ki.Stream,
 	}, func(desc *kinesis.DescribeStreamOutput, _ bool) bool {
 		if desc == nil {
 			err = errors.New("Stream could not be described")
@@ -122,52 +123,52 @@ func (k *KinesumerImpl) GetShards() (shards []*kinesis.Shard, err error) {
 	return
 }
 
-func (k *KinesumerImpl) LaunchShardWorker(shards []*kinesis.Shard) (int, error) {
+func (ki *KinesumerImpl) LaunchShardWorker(shards []*kinesis.Shard) (int, error) {
 	perm := rand.Perm(len(shards))
 	for _, j := range perm {
-		err := k.Checkpointer.TryAcquire(shards[j].ShardID)
+		err := ki.Checkpointer.TryAcquire(shards[j].ShardID)
 		if err == nil {
 			worker := &ShardWorker{
-				kinesis:         k.Kinesis,
+				kinesis:         ki.Kinesis,
 				shard:           shards[j],
-				checkpointer:    k.Checkpointer,
-				stream:          k.Stream,
-				pollTime:        k.opt.PollTime,
-				stop:            k.stop,
-				stopped:         k.stopped,
-				c:               k.records,
-				GetRecordsLimit: k.opt.GetRecordsLimit,
+				checkpointer:    ki.Checkpointer,
+				stream:          ki.Stream,
+				pollTime:        ki.opt.PollTime,
+				stop:            ki.stop,
+				stopped:         ki.stopped,
+				c:               ki.records,
+				GetRecordsLimit: ki.opt.GetRecordsLimit,
 			}
 			go worker.RunWorker()
-			k.nRunning++
+			ki.nRunning++
 			return j, nil
 		}
 	}
 	return 0, errors.New("Could not launch worker")
 }
 
-func (k *KinesumerImpl) Begin() (err error) {
-	shards, err := k.GetShards()
+func (ki *KinesumerImpl) Begin() (err error) {
+	shards, err := ki.GetShards()
 	if err != nil {
 		return
 	}
 
-	err = k.Checkpointer.Begin(k.records)
+	err = ki.Checkpointer.Begin(ki.records)
 	if err != nil {
 		return
 	}
 
-	n := k.opt.MaxShards
+	n := ki.opt.MaxShards
 	if n <= 0 || len(shards) < n {
 		n = len(shards)
 	}
 
-	k.stop = make(chan Unit, k.nRunning)
-	k.stopped = make(chan Unit, k.nRunning)
+	ki.stop = make(chan k.Unit, ki.nRunning)
+	ki.stopped = make(chan k.Unit, ki.nRunning)
 	for i := 0; i < n; i++ {
-		j, err := k.LaunchShardWorker(shards)
+		j, err := ki.LaunchShardWorker(shards)
 		if err != nil {
-			k.End()
+			ki.End()
 			return err
 		}
 		shards = append(shards[:j], shards[j+1:]...)
@@ -176,17 +177,17 @@ func (k *KinesumerImpl) Begin() (err error) {
 	return
 }
 
-func (k *KinesumerImpl) End() {
-	for k.nRunning > 0 {
+func (ki *KinesumerImpl) End() {
+	for ki.nRunning > 0 {
 		select {
-		case <-k.stopped:
-			k.nRunning--
-		case k.stop <- Unit{}:
+		case <-ki.stopped:
+			ki.nRunning--
+		case ki.stop <- k.Unit{}:
 		}
 	}
-	k.Checkpointer.End()
+	ki.Checkpointer.End()
 }
 
-func (k *KinesumerImpl) Records() <-chan *KinesisRecord {
-	return k.records
+func (ki *KinesumerImpl) Records() <-chan *k.KinesisRecord {
+	return ki.records
 }

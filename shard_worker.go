@@ -4,18 +4,19 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go/service/kinesis"
+	k "github.com/remind101/kinesumer/interface"
 )
 
 type ShardWorker struct {
-	kinesis         Kinesis
+	kinesis         k.Kinesis
 	shard           *kinesis.Shard
-	checkpointer    Checkpointer
+	checkpointer    k.Checkpointer
 	stream          *string
 	pollTime        int
 	sequence        *string
-	stop            <-chan Unit
-	stopped         chan<- Unit
-	c               chan *KinesisRecord
+	stop            <-chan k.Unit
+	stopped         chan<- k.Unit
+	c               chan *k.KinesisRecord
 	GetRecordsLimit int64
 }
 
@@ -55,7 +56,7 @@ func (s *ShardWorker) GetRecordsAndProcess(it, sequence *string) (cont bool, nex
 	records, nextIt, lag, err := s.GetRecords(it)
 	if err != nil || len(records) == 0 {
 		if err != nil {
-			s.c <- &KinesisRecord{
+			s.c <- &k.KinesisRecord{
 				ShardID:            s.shard.ShardID,
 				MillisBehindLatest: lag,
 				Err:                err,
@@ -74,7 +75,7 @@ func (s *ShardWorker) GetRecordsAndProcess(it, sequence *string) (cont bool, nex
 		}
 	} else {
 		for _, rec := range records {
-			s.c <- &KinesisRecord{
+			s.c <- &k.KinesisRecord{
 				Record:             *rec,
 				ShardID:            s.shard.ShardID,
 				CheckpointC:        s.checkpointer.DoneC(),
@@ -88,7 +89,7 @@ func (s *ShardWorker) GetRecordsAndProcess(it, sequence *string) (cont bool, nex
 
 func (s *ShardWorker) RunWorker() {
 	defer func() {
-		s.stopped <- Unit{}
+		s.stopped <- k.Unit{}
 	}()
 
 	sequence := s.checkpointer.GetStartSequence(s.shard.ShardID)
@@ -97,12 +98,9 @@ func (s *ShardWorker) RunWorker() {
 	if sequence == nil || len(*sequence) == 0 {
 		sequence = s.shard.SequenceNumberRange.StartingSequenceNumber
 
-		s.c <- &KinesisRecord{
+		s.c <- &k.KinesisRecord{
 			ShardID: s.shard.ShardID,
-			Err: &KinesumerError{
-				Severity: "info",
-				message:  "Using TRIM_HORIZON",
-			},
+			Err:     k.NewKinesumerError(k.KinesumerEInfo, "Using TRIM_HORIZON", nil),
 		}
 		it = s.TryGetShardIterator("TRIM_HORIZON", nil)
 	} else {
@@ -112,12 +110,9 @@ func (s *ShardWorker) RunWorker() {
 loop:
 	for {
 		if end != nil && *sequence == *end {
-			s.c <- &KinesisRecord{
+			s.c <- &k.KinesisRecord{
 				ShardID: s.shard.ShardID,
-				Err: &KinesumerError{
-					Severity: "info",
-					message:  "Shard has reached its end",
-				},
+				Err:     k.NewKinesumerError(k.KinesumerEInfo, "Shard has reached its end", nil),
 			}
 			break loop
 		}

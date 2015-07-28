@@ -1,6 +1,7 @@
 package kinesumer
 
 import (
+	k "github.com/remind101/kinesumer/interface"
 	"github.com/stretchr/testify/mock"
 )
 
@@ -8,17 +9,17 @@ type CheckpointerMock struct {
 	mock.Mock
 }
 
-func (m *CheckpointerMock) DoneC() chan<- *KinesisRecord {
+func (m *CheckpointerMock) DoneC() chan<- *k.KinesisRecord {
 	ret := m.Called()
 
-	var r0 chan *KinesisRecord
+	var r0 chan *k.KinesisRecord
 	if ret.Get(0) != nil {
-		r0 = ret.Get(0).(chan *KinesisRecord)
+		r0 = ret.Get(0).(chan *k.KinesisRecord)
 	}
 
 	return r0
 }
-func (m *CheckpointerMock) Begin(_a0 chan<- *KinesisRecord) error {
+func (m *CheckpointerMock) Begin(_a0 chan<- *k.KinesisRecord) error {
 	ret := m.Called(_a0)
 
 	r0 := ret.Error(0)

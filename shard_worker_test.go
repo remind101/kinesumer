@@ -8,17 +8,18 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/kinesis"
+	k "github.com/remind101/kinesumer/interface"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
 
-func makeTestShardWorker() (*ShardWorker, *KinesisMock, *CheckpointerMock, chan Unit,
-	chan Unit, chan *KinesisRecord) {
+func makeTestShardWorker() (*ShardWorker, *KinesisMock, *CheckpointerMock, chan k.Unit, chan k.Unit,
+	chan *k.KinesisRecord) {
 	kin := new(KinesisMock)
 	sssm := new(CheckpointerMock)
-	stop := make(chan Unit, 1)
-	stopped := make(chan Unit, 1)
-	c := make(chan *KinesisRecord, 100)
+	stop := make(chan k.Unit, 1)
+	stopped := make(chan k.Unit, 1)
+	c := make(chan *k.KinesisRecord, 100)
 
 	return &ShardWorker{
 		kinesis: kin,
@@ -94,7 +95,7 @@ func TestShardWorkerGetRecordsAndProcess(t *testing.T) {
 		NextShardIterator:  aws.String("AAAA"),
 		Records:            []*kinesis.Record{&record1},
 	}, awserr.Error(nil)).Once()
-	doneC := make(chan *KinesisRecord)
+	doneC := make(chan *k.KinesisRecord)
 	sssm.On("DoneC").Return(doneC)
 	brk, nextIt, nextSeq := s.GetRecordsAndProcess(aws.String("AAAA"), aws.String("123"))
 	rec := <-c
@@ -104,7 +105,7 @@ func TestShardWorkerGetRecordsAndProcess(t *testing.T) {
 	assert.Equal(t, "123", *nextSeq)
 
 	err := awserr.New("bad", "bad", nil)
-	stp <- Unit{}
+	stp <- k.Unit{}
 	kin.On("GetRecords", mock.Anything).Return(&kinesis.GetRecordsOutput{
 		MillisBehindLatest: aws.Long(0),
 		NextShardIterator:  aws.String("AAAA"),
@@ -139,14 +140,14 @@ func TestShardWorkerRun(t *testing.T) {
 		NextShardIterator:  aws.String("AAAA"),
 		Records:            []*kinesis.Record{},
 	}, awserr.Error(nil))
-	doneC := make(chan *KinesisRecord)
+	doneC := make(chan *k.KinesisRecord)
 	sssm.On("DoneC").Return(doneC)
 	kin.On("GetShardIterator", mock.Anything).Return(&kinesis.GetShardIteratorOutput{
 		ShardIterator: aws.String("AAAA"),
 	}, awserr.Error(nil))
 	go func() {
 		time.Sleep(10 * time.Millisecond)
-		stp <- Unit{}
+		stp <- k.Unit{}
 	}()
 	s.RunWorker()
 	<-stpd

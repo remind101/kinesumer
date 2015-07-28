@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/garyburd/redigo/redis"
+	k "github.com/remind101/kinesumer/interface"
 )
 
 var (
@@ -51,7 +52,7 @@ func TestRedisGoodLogin(t *testing.T) {
 
 func TestRedisBeginEnd(t *testing.T) {
 	r := makeRedisStateSyncWithSamples()
-	c := make(chan *KinesisRecord)
+	c := make(chan *k.KinesisRecord)
 	err := r.Begin(c)
 	if err != nil {
 		t.Error(err)
@@ -61,7 +62,7 @@ func TestRedisBeginEnd(t *testing.T) {
 
 func TestGetStartSequence(t *testing.T) {
 	r := makeRedisStateSyncWithSamples()
-	c := make(chan *KinesisRecord)
+	c := make(chan *k.KinesisRecord)
 	_ = r.Begin(c)
 	r.End()
 	shard1 := "shard1"
@@ -73,7 +74,7 @@ func TestGetStartSequence(t *testing.T) {
 
 func TestWriteAll(t *testing.T) {
 	r := makeRedisStateSyncWithSamples()
-	c := make(chan *KinesisRecord)
+	c := make(chan *k.KinesisRecord)
 	r.Begin(c)
 	r.heads["shard1"] = "1001"
 	r.heads["shard2"] = "2001"

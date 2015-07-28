@@ -1,6 +1,7 @@
 package kinesumer
 
 import (
+	k "github.com/remind101/kinesumer/interface"
 	"github.com/stretchr/testify/mock"
 )
 
@@ -18,12 +19,12 @@ func (m *KinesumerMock) Begin() error {
 func (m *KinesumerMock) End() {
 	m.Called()
 }
-func (m *KinesumerMock) Records() <-chan *KinesisRecord {
+func (m *KinesumerMock) Records() <-chan *k.KinesisRecord {
 	ret := m.Called()
 
-	var r0 <-chan *KinesisRecord
+	var r0 <-chan *k.KinesisRecord
 	if ret.Get(0) != nil {
-		r0 = ret.Get(0).(<-chan *KinesisRecord)
+		r0 = ret.Get(0).(<-chan *k.KinesisRecord)
 	}
 
 	return r0

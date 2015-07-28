@@ -1,18 +1,8 @@
-package kinesumer
+package kinesumeriface
 
 import (
 	"github.com/aws/aws-sdk-go/service/kinesis"
 )
-
-type KinesumerError struct {
-	// One of "crit", "error", "warn", "info", "debug"
-	Severity string
-	message  string
-}
-
-func (e *KinesumerError) Error() string {
-	return e.message
-}
 
 // If Err == nil then everything else is set
 // Otherwise, Kinesis encountered a problem
@@ -33,14 +23,4 @@ func (s *KinesisRecord) Done() {
 	if s.Err == nil {
 		s.CheckpointC <- s
 	}
-}
-
-type Checkpointer interface {
-	DoneC() chan<- *KinesisRecord
-	Begin(chan<- *KinesisRecord) error
-	End()
-	GetStartSequence(shardID *string) *string
-	Sync()
-	TryAcquire(shardID *string) error
-	Release(shardID *string) error
 }

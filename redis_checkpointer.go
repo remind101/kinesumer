@@ -7,13 +7,14 @@ import (
 	"time"
 
 	"github.com/garyburd/redigo/redis"
+	k "github.com/remind101/kinesumer/interface"
 )
 
 type RedisCheckpointer struct {
 	heads       map[string]string
-	acquired    map[string]Unit
-	c           chan *KinesisRecord
-	recs        chan<- *KinesisRecord
+	acquired    map[string]k.Unit
+	c           chan *k.KinesisRecord
+	recs        chan<- *k.KinesisRecord
 	mut         sync.Mutex
 	pool        *redis.Pool
 	redisPrefix string
@@ -48,8 +49,8 @@ func NewRedisCheckpointer(opt *RedisCheckpointerOptions) (*RedisCheckpointer, er
 	}
 	return &RedisCheckpointer{
 		heads:       make(map[string]string),
-		acquired:    make(map[string]Unit, 0),
-		c:           make(chan *KinesisRecord),
+		acquired:    make(map[string]k.Unit, 0),
+		c:           make(chan *k.KinesisRecord),
 		mut:         sync.Mutex{},
 		pool:        redisPool,
 		redisPrefix: opt.RedisPrefix,
@@ -60,7 +61,7 @@ func NewRedisCheckpointer(opt *RedisCheckpointerOptions) (*RedisCheckpointer, er
 	}, nil
 }
 
-func (r *RedisCheckpointer) DoneC() chan<- *KinesisRecord {
+func (r *RedisCheckpointer) DoneC() chan<- *k.KinesisRecord {
 	return r.c
 }
 
@@ -71,7 +72,7 @@ func (r *RedisCheckpointer) Sync() {
 		conn := r.pool.Get()
 		defer conn.Close()
 		if _, err := conn.Do("HMSET", redis.Args{r.redisPrefix + ":sequence"}.AddFlat(r.heads)...); err != nil {
-			r.recs <- &KinesisRecord{
+			r.recs <- &k.KinesisRecord{
 				Err: err,
 			}
 		}
@@ -103,7 +104,7 @@ loop:
 	r.wg.Done()
 }
 
-func (r *RedisCheckpointer) Begin(recs chan<- *KinesisRecord) error {
+func (r *RedisCheckpointer) Begin(recs chan<- *k.KinesisRecord) error {
 	r.recs = recs
 	conn := r.pool.Get()
 	defer conn.Close()
@@ -145,7 +146,7 @@ func (r *RedisCheckpointer) TryAcquire(shardID *string) error {
 	if res != "OK" {
 		return errors.New("Failed to acquire lock")
 	}
-	r.acquired[*shardID] = Unit{}
+	r.acquired[*shardID] = k.Unit{}
 	return nil
 }
 
@@ -156,13 +157,13 @@ func (r *RedisCheckpointer) Reacquire() {
 		res, err := conn.Do("PEXPIRE", r.redisPrefix+".lock."+shardID, r.alivePeriod/time.Millisecond, "NX")
 		if err != nil || res != "OK" {
 			if err != nil {
-				r.recs <- &KinesisRecord{
+				r.recs <- &k.KinesisRecord{
 					Err: err,
 				}
 			}
 			err = r.TryAcquire(&shardID)
 			if err != nil {
-				r.recs <- &KinesisRecord{
+				r.recs <- &k.KinesisRecord{
 					Err: err,
 				}
 			}

@@ -1,4 +1,4 @@
-package kinesumer
+package kinesumeriface
 
 import (
 	"github.com/aws/aws-sdk-go/service/kinesis"

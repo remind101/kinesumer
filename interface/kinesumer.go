@@ -1,4 +1,4 @@
-package kinesumer
+package kinesumeriface
 
 type Kinesumer interface {
 	Begin() (err error)
