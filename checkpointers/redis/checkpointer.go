@@ -17,7 +17,7 @@ type Checkpointer struct {
 	savePeriod  time.Duration
 	wg          sync.WaitGroup
 	modified    bool
-	handlers    k.KinesumerHandlers
+	handlers    k.Handlers
 }
 
 type CheckpointerOptions struct {
@@ -76,7 +76,7 @@ loop:
 	r.wg.Done()
 }
 
-func (r *Checkpointer) Begin(handlers k.KinesumerHandlers) error {
+func (r *Checkpointer) Begin(handlers k.Handlers) error {
 	r.handlers = handlers
 
 	conn := r.pool.Get()

@@ -19,7 +19,7 @@ func (m *Checkpointer) DoneC() chan<- k.Record {
 
 	return r0
 }
-func (m *Checkpointer) Begin(_a0 k.KinesumerHandlers) error {
+func (m *Checkpointer) Begin(_a0 k.Handlers) error {
 	ret := m.Called(_a0)
 
 	r0 := ret.Error(0)

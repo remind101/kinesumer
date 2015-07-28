@@ -1,11 +1,11 @@
 package kinesumer
 
 const (
-	KinesumerECrit  = "crit"
-	KinesumerEError = "error"
-	KinesumerEWarn  = "warn"
-	KinesumerEInfo  = "info"
-	KinesumerEDebug = "debug"
+	ECrit  = "crit"
+	EError = "error"
+	EWarn  = "warn"
+	EInfo  = "info"
+	EDebug = "debug"
 )
 
 type Error struct {

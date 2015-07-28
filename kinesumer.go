@@ -32,7 +32,7 @@ type KinesumerOptions struct {
 	GetRecordsLimit     int64
 	PollTime            int
 	MaxShardWorkers     int
-	Handlers            k.KinesumerHandlers
+	Handlers            k.Handlers
 }
 
 var DefaultKinesumerOptions = KinesumerOptions{
@@ -44,7 +44,7 @@ var DefaultKinesumerOptions = KinesumerOptions{
 
 	PollTime:        2000,
 	MaxShardWorkers: 50,
-	Handlers:        k.DefaultKinesumerHandlers{},
+	Handlers:        k.DefaultHandlers{},
 }
 
 func NewDefaultKinesumer(awsAccessKey, awsSecretKey, awsRegion, stream string) (*Kinesumer, error) {
@@ -67,7 +67,7 @@ func NewKinesumer(kinesis k.Kinesis, checkpointer k.Checkpointer, provisioner k.
 	randSource rand.Source, stream string, opt *KinesumerOptions) (*Kinesumer, error) {
 
 	if kinesis == nil {
-		return nil, NewError(KinesumerECrit, "Kinesis object must not be nil", nil)
+		return nil, NewError(ECrit, "Kinesis object must not be nil", nil)
 	}
 
 	if checkpointer == nil {
@@ -83,7 +83,7 @@ func NewKinesumer(kinesis k.Kinesis, checkpointer k.Checkpointer, provisioner k.
 	}
 
 	if len(stream) == 0 {
-		return nil, NewError(KinesumerECrit, "Stream name can't be empty", nil)
+		return nil, NewError(ECrit, "Stream name can't be empty", nil)
 	}
 
 	if opt == nil {
@@ -199,7 +199,7 @@ func (kin *Kinesumer) Begin() (err error) {
 		for i := 0; i < n; i++ {
 			j, err := kin.LaunchShardWorker(shards)
 			if err != nil {
-				kin.Options.Handlers.Err(NewError(KinesumerEWarn, "Could not start shard worker", err))
+				kin.Options.Handlers.Err(NewError(EWarn, "Could not start shard worker", err))
 			} else {
 				shards = append(shards[:j], shards[j+1:]...)
 			}
