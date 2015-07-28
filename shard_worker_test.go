@@ -9,14 +9,15 @@ import (
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/kinesis"
 	k "github.com/remind101/kinesumer/interface"
+	"github.com/remind101/kinesumer/mocks"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
 
-func makeTestShardWorker() (*ShardWorker, *KinesisMock, *CheckpointerMock, chan k.Unit, chan k.Unit,
-	chan *k.KinesisRecord) {
-	kin := new(KinesisMock)
-	sssm := new(CheckpointerMock)
+func makeTestShardWorker() (*ShardWorker, *mocks.Kinesis, *mocks.Checkpointer, chan k.Unit,
+	chan k.Unit, chan *k.KinesisRecord) {
+	kin := new(mocks.Kinesis)
+	sssm := new(mocks.Checkpointer)
 	stop := make(chan k.Unit, 1)
 	stopped := make(chan k.Unit, 1)
 	c := make(chan *k.KinesisRecord, 100)

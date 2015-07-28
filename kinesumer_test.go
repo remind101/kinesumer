@@ -6,13 +6,14 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/kinesis"
+	"github.com/remind101/kinesumer/mocks"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
 
-func makeTestKinesumer(t *testing.T) (*KinesumerImpl, *KinesisMock, *CheckpointerMock) {
-	kin := new(KinesisMock)
-	sssm := new(CheckpointerMock)
+func makeTestKinesumer(t *testing.T) (*Kinesumer, *mocks.Kinesis, *mocks.Checkpointer) {
+	kin := new(mocks.Kinesis)
+	sssm := new(mocks.Checkpointer)
 	k, err := NewKinesumer(
 		kin,
 		sssm,
