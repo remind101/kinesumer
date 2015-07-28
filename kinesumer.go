@@ -2,6 +2,7 @@ package kinesumer
 
 import (
 	"errors"
+	"fmt"
 	"math/rand"
 	"time"
 
@@ -196,7 +197,7 @@ func (kin *Kinesumer) Begin() (err error) {
 	kin.stop = make(chan Unit, n)
 	kin.stopped = make(chan Unit, n)
 	for kin.nRunning < n && len(shards) > 0 && time.Now().Sub(start) < tryTime {
-		for i := 0; i < n; i++ {
+		for i := kin.nRunning; i < n; i++ {
 			j, err := kin.LaunchShardWorker(shards)
 			if err != nil {
 				kin.Options.Handlers.Err(NewError(EWarn, "Could not start shard worker", err))
@@ -206,6 +207,8 @@ func (kin *Kinesumer) Begin() (err error) {
 		}
 		time.Sleep(500 * time.Millisecond)
 	}
+
+	kin.Options.Handlers.Err(NewError(EWarn, fmt.Sprintf(EInfo, "%v/%v workers started", kin.nRunning, n), nil))
 
 	return
 }
