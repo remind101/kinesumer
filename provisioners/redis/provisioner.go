@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/garyburd/redigo/redis"
+	"github.com/pborman/uuid" // Exported from code.google.com/p/go-uuid
 )
 
 type Provisioner struct {
@@ -17,8 +18,11 @@ type Provisioner struct {
 
 func New() (*Provisioner, error) {
 	return &Provisioner{
-		acquired: make(map[string]bool),
-		pool:     nil,
+		acquired:    make(map[string]bool),
+		alivePeriod: 0,
+		pool:        nil,
+		redisPrefix: "",
+		lock:        uuid.New(),
 	}, nil
 }
 
