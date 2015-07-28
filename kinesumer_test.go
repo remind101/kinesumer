@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-func makeTestKinesumer(t *testing.T) (*Kinesumer, *KinesisMock, *CheckpointerMock) {
+func makeTestKinesumer(t *testing.T) (*KinesumerImpl, *KinesisMock, *CheckpointerMock) {
 	kin := new(KinesisMock)
 	sssm := new(CheckpointerMock)
 	k, err := NewKinesumer(
