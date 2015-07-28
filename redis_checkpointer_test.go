@@ -12,8 +12,8 @@ var (
 	sequenceKey = prefix + ":sequence"
 )
 
-func makeRedisStateSync() (*RedisStateSync, error) {
-	r, err := NewRedisStateSync(&RedisStateSyncOptions{
+func makeRedisStateSync() (*RedisCheckpointer, error) {
+	r, err := NewRedisCheckpointer(&RedisCheckpointerOptions{
 		SavePeriod:  time.Hour,
 		AlivePeriod: time.Hour,
 		RedisURL:    "redis://127.0.0.1:6379",
@@ -22,7 +22,7 @@ func makeRedisStateSync() (*RedisStateSync, error) {
 	return r, err
 }
 
-func makeRedisStateSyncWithSamples() *RedisStateSync {
+func makeRedisStateSyncWithSamples() *RedisCheckpointer {
 	r, _ := makeRedisStateSync()
 	conn := r.pool.Get()
 	defer conn.Close()

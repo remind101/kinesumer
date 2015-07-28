@@ -4,11 +4,11 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-type ShardStateSyncMock struct {
+type CheckpointerMock struct {
 	mock.Mock
 }
 
-func (m *ShardStateSyncMock) DoneC() chan<- *KinesisRecord {
+func (m *CheckpointerMock) DoneC() chan<- *KinesisRecord {
 	ret := m.Called()
 
 	var r0 chan *KinesisRecord
@@ -18,17 +18,17 @@ func (m *ShardStateSyncMock) DoneC() chan<- *KinesisRecord {
 
 	return r0
 }
-func (m *ShardStateSyncMock) Begin(_a0 chan<- *KinesisRecord) error {
+func (m *CheckpointerMock) Begin(_a0 chan<- *KinesisRecord) error {
 	ret := m.Called(_a0)
 
 	r0 := ret.Error(0)
 
 	return r0
 }
-func (m *ShardStateSyncMock) End() {
+func (m *CheckpointerMock) End() {
 	m.Called()
 }
-func (m *ShardStateSyncMock) GetStartSequence(shardID *string) *string {
+func (m *CheckpointerMock) GetStartSequence(shardID *string) *string {
 	ret := m.Called(shardID)
 
 	var r0 *string
@@ -38,17 +38,17 @@ func (m *ShardStateSyncMock) GetStartSequence(shardID *string) *string {
 
 	return r0
 }
-func (m *ShardStateSyncMock) Sync() {
+func (m *CheckpointerMock) Sync() {
 	m.Called()
 }
-func (m *ShardStateSyncMock) TryAcquire(shardID *string) error {
+func (m *CheckpointerMock) TryAcquire(shardID *string) error {
 	ret := m.Called(shardID)
 
 	r0 := ret.Error(0)
 
 	return r0
 }
-func (m *ShardStateSyncMock) Release(shardID *string) error {
+func (m *CheckpointerMock) Release(shardID *string) error {
 	ret := m.Called(shardID)
 
 	r0 := ret.Error(0)

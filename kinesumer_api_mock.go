@@ -4,21 +4,21 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-type KinesumerAPIMock struct {
+type KinesumerMock struct {
 	mock.Mock
 }
 
-func (m *KinesumerAPIMock) Begin() error {
+func (m *KinesumerMock) Begin() error {
 	ret := m.Called()
 
 	r0 := ret.Error(0)
 
 	return r0
 }
-func (m *KinesumerAPIMock) End() {
+func (m *KinesumerMock) End() {
 	m.Called()
 }
-func (m *KinesumerAPIMock) Records() <-chan *KinesisRecord {
+func (m *KinesumerMock) Records() <-chan *KinesisRecord {
 	ret := m.Called()
 
 	var r0 <-chan *KinesisRecord

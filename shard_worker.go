@@ -7,9 +7,9 @@ import (
 )
 
 type ShardWorker struct {
-	kinesis         KinesisAPI
+	kinesis         Kinesis
 	shard           *kinesis.Shard
-	stateSync       ShardStateSync
+	checkpointer    Checkpointer
 	stream          *string
 	pollTime        int
 	sequence        *string
@@ -77,7 +77,7 @@ func (s *ShardWorker) GetRecordsAndProcess(it, sequence *string) (cont bool, nex
 			s.c <- &KinesisRecord{
 				Record:             *rec,
 				ShardID:            s.shard.ShardID,
-				Sync:               s.stateSync.DoneC(),
+				CheckpointC:        s.checkpointer.DoneC(),
 				MillisBehindLatest: lag,
 			}
 		}
@@ -91,7 +91,7 @@ func (s *ShardWorker) RunWorker() {
 		s.stopped <- Unit{}
 	}()
 
-	sequence := s.stateSync.GetStartSequence(s.shard.ShardID)
+	sequence := s.checkpointer.GetStartSequence(s.shard.ShardID)
 	end := s.shard.SequenceNumberRange.EndingSequenceNumber
 	var it *string
 	if sequence == nil || len(*sequence) == 0 {

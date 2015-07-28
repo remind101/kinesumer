@@ -12,10 +12,10 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-func makeTestShardWorker() (*ShardWorker, *KinesisAPIMock, *ShardStateSyncMock, chan Unit,
+func makeTestShardWorker() (*ShardWorker, *KinesisMock, *CheckpointerMock, chan Unit,
 	chan Unit, chan *KinesisRecord) {
-	kin := new(KinesisAPIMock)
-	sssm := new(ShardStateSyncMock)
+	kin := new(KinesisMock)
+	sssm := new(CheckpointerMock)
 	stop := make(chan Unit, 1)
 	stopped := make(chan Unit, 1)
 	c := make(chan *KinesisRecord, 100)
@@ -35,7 +35,7 @@ func makeTestShardWorker() (*ShardWorker, *KinesisAPIMock, *ShardStateSyncMock, 
 			},
 			ShardID: aws.String("shard0"),
 		},
-		stateSync:       sssm,
+		checkpointer:    sssm,
 		stream:          aws.String("TestStream"),
 		sequence:        aws.String("123"),
 		stop:            stop,

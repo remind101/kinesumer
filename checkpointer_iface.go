@@ -23,7 +23,7 @@ type KinesisRecord struct {
 	//   SequenceNumber *string
 	kinesis.Record
 	ShardID            *string
-	Sync               chan<- *KinesisRecord
+	CheckpointC        chan<- *KinesisRecord
 	MillisBehindLatest int64
 	// May or may not be a KinesumerError
 	Err error
@@ -31,11 +31,11 @@ type KinesisRecord struct {
 
 func (s *KinesisRecord) Done() {
 	if s.Err == nil {
-		s.Sync <- s
+		s.CheckpointC <- s
 	}
 }
 
-type ShardStateSync interface {
+type Checkpointer interface {
 	DoneC() chan<- *KinesisRecord
 	Begin(chan<- *KinesisRecord) error
 	End()

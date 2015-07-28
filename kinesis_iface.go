@@ -4,8 +4,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/kinesis"
 )
 
-// KinesisAPI is the interface type for kinesis.Kinesis.
-type KinesisAPI interface {
+type Kinesis interface {
 	AddTagsToStream(*kinesis.AddTagsToStreamInput) (*kinesis.AddTagsToStreamOutput, error)
 
 	CreateStream(*kinesis.CreateStreamInput) (*kinesis.CreateStreamOutput, error)

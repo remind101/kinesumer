@@ -6,11 +6,11 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-type KinesisAPIMock struct {
+type KinesisMock struct {
 	mock.Mock
 }
 
-func (m *KinesisAPIMock) AddTagsToStream(_a0 *kinesis.AddTagsToStreamInput) (*kinesis.AddTagsToStreamOutput, error) {
+func (m *KinesisMock) AddTagsToStream(_a0 *kinesis.AddTagsToStreamInput) (*kinesis.AddTagsToStreamOutput, error) {
 	ret := m.Called(_a0)
 
 	var r0 *kinesis.AddTagsToStreamOutput
@@ -21,7 +21,7 @@ func (m *KinesisAPIMock) AddTagsToStream(_a0 *kinesis.AddTagsToStreamInput) (*ki
 
 	return r0, r1
 }
-func (m *KinesisAPIMock) CreateStream(_a0 *kinesis.CreateStreamInput) (*kinesis.CreateStreamOutput, error) {
+func (m *KinesisMock) CreateStream(_a0 *kinesis.CreateStreamInput) (*kinesis.CreateStreamOutput, error) {
 	ret := m.Called(_a0)
 
 	var r0 *kinesis.CreateStreamOutput
@@ -32,7 +32,7 @@ func (m *KinesisAPIMock) CreateStream(_a0 *kinesis.CreateStreamInput) (*kinesis.
 
 	return r0, r1
 }
-func (m *KinesisAPIMock) DeleteStream(_a0 *kinesis.DeleteStreamInput) (*kinesis.DeleteStreamOutput, error) {
+func (m *KinesisMock) DeleteStream(_a0 *kinesis.DeleteStreamInput) (*kinesis.DeleteStreamOutput, error) {
 	ret := m.Called(_a0)
 
 	var r0 *kinesis.DeleteStreamOutput
@@ -43,7 +43,7 @@ func (m *KinesisAPIMock) DeleteStream(_a0 *kinesis.DeleteStreamInput) (*kinesis.
 
 	return r0, r1
 }
-func (m *KinesisAPIMock) DescribeStream(_a0 *kinesis.DescribeStreamInput) (*kinesis.DescribeStreamOutput, error) {
+func (m *KinesisMock) DescribeStream(_a0 *kinesis.DescribeStreamInput) (*kinesis.DescribeStreamOutput, error) {
 	ret := m.Called(_a0)
 
 	var r0 *kinesis.DescribeStreamOutput
@@ -54,7 +54,7 @@ func (m *KinesisAPIMock) DescribeStream(_a0 *kinesis.DescribeStreamInput) (*kine
 
 	return r0, r1
 }
-func (m *KinesisAPIMock) DescribeStreamPages(_a0 *kinesis.DescribeStreamInput, _a1 func(*kinesis.DescribeStreamOutput, bool) bool) error {
+func (m *KinesisMock) DescribeStreamPages(_a0 *kinesis.DescribeStreamInput, _a1 func(*kinesis.DescribeStreamOutput, bool) bool) error {
 	ret := m.Called(_a0, _a1)
 
 	a := kinesis.Shard{
@@ -107,7 +107,7 @@ func (m *KinesisAPIMock) DescribeStreamPages(_a0 *kinesis.DescribeStreamInput, _
 
 	return r0
 }
-func (m *KinesisAPIMock) GetRecords(_a0 *kinesis.GetRecordsInput) (*kinesis.GetRecordsOutput, error) {
+func (m *KinesisMock) GetRecords(_a0 *kinesis.GetRecordsInput) (*kinesis.GetRecordsOutput, error) {
 	ret := m.Called(_a0)
 
 	var r0 *kinesis.GetRecordsOutput
@@ -118,7 +118,7 @@ func (m *KinesisAPIMock) GetRecords(_a0 *kinesis.GetRecordsInput) (*kinesis.GetR
 
 	return r0, r1
 }
-func (m *KinesisAPIMock) GetShardIterator(_a0 *kinesis.GetShardIteratorInput) (*kinesis.GetShardIteratorOutput, error) {
+func (m *KinesisMock) GetShardIterator(_a0 *kinesis.GetShardIteratorInput) (*kinesis.GetShardIteratorOutput, error) {
 	ret := m.Called(_a0)
 
 	var r0 *kinesis.GetShardIteratorOutput
@@ -129,7 +129,7 @@ func (m *KinesisAPIMock) GetShardIterator(_a0 *kinesis.GetShardIteratorInput) (*
 
 	return r0, r1
 }
-func (m *KinesisAPIMock) ListStreams(_a0 *kinesis.ListStreamsInput) (*kinesis.ListStreamsOutput, error) {
+func (m *KinesisMock) ListStreams(_a0 *kinesis.ListStreamsInput) (*kinesis.ListStreamsOutput, error) {
 	ret := m.Called(_a0)
 
 	var r0 *kinesis.ListStreamsOutput
@@ -140,7 +140,7 @@ func (m *KinesisAPIMock) ListStreams(_a0 *kinesis.ListStreamsInput) (*kinesis.Li
 
 	return r0, r1
 }
-func (m *KinesisAPIMock) ListStreamsPages(_a0 *kinesis.ListStreamsInput, _a1 func(*kinesis.ListStreamsOutput, bool) bool) error {
+func (m *KinesisMock) ListStreamsPages(_a0 *kinesis.ListStreamsInput, _a1 func(*kinesis.ListStreamsOutput, bool) bool) error {
 	ret := m.Called(_a0, _a1)
 
 	cont := _a1(&kinesis.ListStreamsOutput{
@@ -157,7 +157,7 @@ func (m *KinesisAPIMock) ListStreamsPages(_a0 *kinesis.ListStreamsInput, _a1 fun
 
 	return r0
 }
-func (m *KinesisAPIMock) ListTagsForStream(_a0 *kinesis.ListTagsForStreamInput) (*kinesis.ListTagsForStreamOutput, error) {
+func (m *KinesisMock) ListTagsForStream(_a0 *kinesis.ListTagsForStreamInput) (*kinesis.ListTagsForStreamOutput, error) {
 	ret := m.Called(_a0)
 
 	var r0 *kinesis.ListTagsForStreamOutput
@@ -168,7 +168,7 @@ func (m *KinesisAPIMock) ListTagsForStream(_a0 *kinesis.ListTagsForStreamInput) 
 
 	return r0, r1
 }
-func (m *KinesisAPIMock) MergeShards(_a0 *kinesis.MergeShardsInput) (*kinesis.MergeShardsOutput, error) {
+func (m *KinesisMock) MergeShards(_a0 *kinesis.MergeShardsInput) (*kinesis.MergeShardsOutput, error) {
 	ret := m.Called(_a0)
 
 	var r0 *kinesis.MergeShardsOutput
@@ -179,7 +179,7 @@ func (m *KinesisAPIMock) MergeShards(_a0 *kinesis.MergeShardsInput) (*kinesis.Me
 
 	return r0, r1
 }
-func (m *KinesisAPIMock) PutRecord(_a0 *kinesis.PutRecordInput) (*kinesis.PutRecordOutput, error) {
+func (m *KinesisMock) PutRecord(_a0 *kinesis.PutRecordInput) (*kinesis.PutRecordOutput, error) {
 	ret := m.Called(_a0)
 
 	var r0 *kinesis.PutRecordOutput
@@ -190,7 +190,7 @@ func (m *KinesisAPIMock) PutRecord(_a0 *kinesis.PutRecordInput) (*kinesis.PutRec
 
 	return r0, r1
 }
-func (m *KinesisAPIMock) PutRecords(_a0 *kinesis.PutRecordsInput) (*kinesis.PutRecordsOutput, error) {
+func (m *KinesisMock) PutRecords(_a0 *kinesis.PutRecordsInput) (*kinesis.PutRecordsOutput, error) {
 	ret := m.Called(_a0)
 
 	var r0 *kinesis.PutRecordsOutput
@@ -201,7 +201,7 @@ func (m *KinesisAPIMock) PutRecords(_a0 *kinesis.PutRecordsInput) (*kinesis.PutR
 
 	return r0, r1
 }
-func (m *KinesisAPIMock) RemoveTagsFromStream(_a0 *kinesis.RemoveTagsFromStreamInput) (*kinesis.RemoveTagsFromStreamOutput, error) {
+func (m *KinesisMock) RemoveTagsFromStream(_a0 *kinesis.RemoveTagsFromStreamInput) (*kinesis.RemoveTagsFromStreamOutput, error) {
 	ret := m.Called(_a0)
 
 	var r0 *kinesis.RemoveTagsFromStreamOutput
@@ -212,7 +212,7 @@ func (m *KinesisAPIMock) RemoveTagsFromStream(_a0 *kinesis.RemoveTagsFromStreamI
 
 	return r0, r1
 }
-func (m *KinesisAPIMock) SplitShard(_a0 *kinesis.SplitShardInput) (*kinesis.SplitShardOutput, error) {
+func (m *KinesisMock) SplitShard(_a0 *kinesis.SplitShardInput) (*kinesis.SplitShardOutput, error) {
 	ret := m.Called(_a0)
 
 	var r0 *kinesis.SplitShardOutput

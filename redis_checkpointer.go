@@ -9,7 +9,7 @@ import (
 	"github.com/garyburd/redigo/redis"
 )
 
-type RedisStateSync struct {
+type RedisCheckpointer struct {
 	heads       map[string]string
 	acquired    map[string]Unit
 	c           chan *KinesisRecord
@@ -24,7 +24,7 @@ type RedisStateSync struct {
 	lock        string
 }
 
-type RedisStateSyncOptions struct {
+type RedisCheckpointerOptions struct {
 	SavePeriod  time.Duration
 	AlivePeriod time.Duration
 	RedisURL    string
@@ -41,12 +41,12 @@ func randString(n int) string {
 	return string(b)
 }
 
-func NewRedisStateSync(opt *RedisStateSyncOptions) (*RedisStateSync, error) {
+func NewRedisCheckpointer(opt *RedisCheckpointerOptions) (*RedisCheckpointer, error) {
 	redisPool, err := NewRedisPool(opt.RedisURL)
 	if err != nil {
 		return nil, err
 	}
-	return &RedisStateSync{
+	return &RedisCheckpointer{
 		heads:       make(map[string]string),
 		acquired:    make(map[string]Unit, 0),
 		c:           make(chan *KinesisRecord),
@@ -60,11 +60,11 @@ func NewRedisStateSync(opt *RedisStateSyncOptions) (*RedisStateSync, error) {
 	}, nil
 }
 
-func (r *RedisStateSync) DoneC() chan<- *KinesisRecord {
+func (r *RedisCheckpointer) DoneC() chan<- *KinesisRecord {
 	return r.c
 }
 
-func (r *RedisStateSync) Sync() {
+func (r *RedisCheckpointer) Sync() {
 	r.mut.Lock()
 	defer r.mut.Unlock()
 	if len(r.heads) > 0 && r.modified {
@@ -79,7 +79,7 @@ func (r *RedisStateSync) Sync() {
 	}
 }
 
-func (r *RedisStateSync) RunShardSync() {
+func (r *RedisCheckpointer) RunShardSync() {
 	saveTicker := time.NewTicker(r.savePeriod).C
 	ttlTicker := time.NewTicker(r.alivePeriod * 4 / 5).C
 loop:
@@ -103,7 +103,7 @@ loop:
 	r.wg.Done()
 }
 
-func (r *RedisStateSync) Begin(recs chan<- *KinesisRecord) error {
+func (r *RedisCheckpointer) Begin(recs chan<- *KinesisRecord) error {
 	r.recs = recs
 	conn := r.pool.Get()
 	defer conn.Close()
@@ -118,12 +118,12 @@ func (r *RedisStateSync) Begin(recs chan<- *KinesisRecord) error {
 	return nil
 }
 
-func (r *RedisStateSync) End() {
+func (r *RedisCheckpointer) End() {
 	close(r.c)
 	r.wg.Wait()
 }
 
-func (r *RedisStateSync) GetStartSequence(shardID *string) *string {
+func (r *RedisCheckpointer) GetStartSequence(shardID *string) *string {
 	val, ok := r.heads[*shardID]
 	if ok {
 		return &val
@@ -132,7 +132,7 @@ func (r *RedisStateSync) GetStartSequence(shardID *string) *string {
 	}
 }
 
-func (r *RedisStateSync) TryAcquire(shardID *string) error {
+func (r *RedisCheckpointer) TryAcquire(shardID *string) error {
 	conn := r.pool.Get()
 	defer conn.Close()
 	if _, exists := r.acquired[*shardID]; exists {
@@ -149,7 +149,7 @@ func (r *RedisStateSync) TryAcquire(shardID *string) error {
 	return nil
 }
 
-func (r *RedisStateSync) Reacquire() {
+func (r *RedisCheckpointer) Reacquire() {
 	conn := r.pool.Get()
 	defer conn.Close()
 	for shardID := range r.acquired {
@@ -170,7 +170,7 @@ func (r *RedisStateSync) Reacquire() {
 	}
 }
 
-func (r *RedisStateSync) Release(shardID *string) error {
+func (r *RedisCheckpointer) Release(shardID *string) error {
 	conn := r.pool.Get()
 	defer conn.Close()
 	delete(r.acquired, *shardID)

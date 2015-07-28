@@ -10,9 +10,9 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-func makeTestKinesumer(t *testing.T) (*Kinesumer, *KinesisAPIMock, *ShardStateSyncMock) {
-	kin := new(KinesisAPIMock)
-	sssm := new(ShardStateSyncMock)
+func makeTestKinesumer(t *testing.T) (*Kinesumer, *KinesisMock, *CheckpointerMock) {
+	kin := new(KinesisMock)
+	sssm := new(CheckpointerMock)
 	k, err := NewKinesumer(
 		kin,
 		sssm,

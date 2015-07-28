@@ -14,21 +14,21 @@ import (
 // when to stop
 type Unit struct{}
 
-type KinesumerAPI interface {
+type KinesumerIface interface {
 	Begin() (err error)
 	End()
 	Records() <-chan *KinesisRecord
 }
 
 type Kinesumer struct {
-	Kinesis   KinesisAPI
-	StateSync ShardStateSync
-	Stream    *string
-	opt       *KinesumerOptions
-	records   chan *KinesisRecord
-	stop      chan Unit
-	stopped   chan Unit
-	nRunning  int
+	Kinesis      Kinesis
+	Checkpointer Checkpointer
+	Stream       *string
+	opt          *KinesumerOptions
+	records      chan *KinesisRecord
+	stop         chan Unit
+	stopped      chan Unit
+	nRunning     int
 }
 
 type KinesumerOptions struct {
@@ -54,13 +54,13 @@ func NewDefaultKinesumer(awsAccessKey, awsSecretKey, awsRegion, stream string) (
 				Region:      awsRegion,
 			},
 		),
-		&EmptyStateSync{},
+		&EmptyCheckpointer{},
 		stream,
 		&DefaultKinesumerOptions)
 }
 
 func NewDefaultRedisKinesumer(awsAccessKey, awsSecretKey, awsRegion, redisURL, stream string) (*Kinesumer, error) {
-	rss, err := NewRedisStateSync(&RedisStateSyncOptions{
+	rss, err := NewRedisCheckpointer(&RedisCheckpointerOptions{
 		SavePeriod: 5 * time.Second,
 	})
 	if err != nil {
@@ -78,13 +78,13 @@ func NewDefaultRedisKinesumer(awsAccessKey, awsSecretKey, awsRegion, redisURL, s
 		&DefaultKinesumerOptions)
 }
 
-func NewKinesumer(kinesis KinesisAPI, stateSync ShardStateSync, stream string, opt *KinesumerOptions) (*Kinesumer, error) {
+func NewKinesumer(kinesis Kinesis, checkpointer Checkpointer, stream string, opt *KinesumerOptions) (*Kinesumer, error) {
 	return &Kinesumer{
-		Kinesis:   kinesis,
-		StateSync: stateSync,
-		Stream:    &stream,
-		opt:       opt,
-		records:   make(chan *KinesisRecord, opt.GetRecordsLimit*2+10),
+		Kinesis:      kinesis,
+		Checkpointer: checkpointer,
+		Stream:       &stream,
+		opt:          opt,
+		records:      make(chan *KinesisRecord, opt.GetRecordsLimit*2+10),
 	}, nil
 }
 
@@ -135,12 +135,12 @@ func (k *Kinesumer) GetShards() (shards []*kinesis.Shard, err error) {
 func (k *Kinesumer) LaunchShardWorker(shards []*kinesis.Shard) (int, error) {
 	perm := rand.Perm(len(shards))
 	for _, j := range perm {
-		err := k.StateSync.TryAcquire(shards[j].ShardID)
+		err := k.Checkpointer.TryAcquire(shards[j].ShardID)
 		if err == nil {
 			worker := &ShardWorker{
 				kinesis:         k.Kinesis,
 				shard:           shards[j],
-				stateSync:       k.StateSync,
+				checkpointer:    k.Checkpointer,
 				stream:          k.Stream,
 				pollTime:        k.opt.PollTime,
 				stop:            k.stop,
@@ -162,7 +162,7 @@ func (k *Kinesumer) Begin() (err error) {
 		return
 	}
 
-	err = k.StateSync.Begin(k.records)
+	err = k.Checkpointer.Begin(k.records)
 	if err != nil {
 		return
 	}
@@ -194,7 +194,7 @@ func (k *Kinesumer) End() {
 		case k.stop <- Unit{}:
 		}
 	}
-	k.StateSync.End()
+	k.Checkpointer.End()
 }
 
 func (k *Kinesumer) Records() <-chan *KinesisRecord {
