@@ -1,4 +1,4 @@
-package kinesumer
+package redischeckpointer
 
 import (
 	"testing"

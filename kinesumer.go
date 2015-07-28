@@ -3,11 +3,11 @@ package kinesumer
 import (
 	"errors"
 	"math/rand"
-	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/service/kinesis"
+	"github.com/remind101/kinesumer/checkpointers/empty"
 	k "github.com/remind101/kinesumer/interface"
 )
 
@@ -45,26 +45,7 @@ func NewDefaultKinesumer(awsAccessKey, awsSecretKey, awsRegion, stream string) (
 				Region:      awsRegion,
 			},
 		),
-		&EmptyCheckpointer{},
-		stream,
-		&DefaultKinesumerOptions)
-}
-
-func NewDefaultRedisKinesumer(awsAccessKey, awsSecretKey, awsRegion, redisURL, stream string) (*Kinesumer, error) {
-	rss, err := NewRedisCheckpointer(&RedisCheckpointerOptions{
-		SavePeriod: 5 * time.Second,
-	})
-	if err != nil {
-		return nil, err
-	}
-	return NewKinesumer(
-		kinesis.New(
-			&aws.Config{
-				Credentials: credentials.NewStaticCredentials(awsAccessKey, awsSecretKey, ""),
-				Region:      awsRegion,
-			},
-		),
-		rss,
+		&emptycheckpointer.Checkpointer{},
 		stream,
 		&DefaultKinesumerOptions)
 }
