@@ -5,4 +5,5 @@ type Provisioner interface {
 	End()
 	TryAcquire(shardID *string) error
 	Release(shardID *string) error
+	HeartbeatC() chan string
 }

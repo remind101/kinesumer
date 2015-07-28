@@ -14,6 +14,7 @@ type Provisioner struct {
 	pool        *redis.Pool
 	redisPrefix string
 	lock        string
+	c           chan string
 }
 
 func New() (*Provisioner, error) {
@@ -23,6 +24,7 @@ func New() (*Provisioner, error) {
 		pool:        nil,
 		redisPrefix: "",
 		lock:        uuid.New(),
+		c:           make(chan string),
 	}, nil
 }
 
@@ -84,4 +86,8 @@ func (p *Provisioner) Release(shardID *string) error {
 		return err
 	}
 	return nil
+}
+
+func (p *Provisioner) HeartbeatC() chan string {
+	return p.c
 }

@@ -7,17 +7,21 @@ import (
 type Provisioner struct {
 }
 
-func (l *Provisioner) Begin(k.KinesumerHandlers) error {
+func (p *Provisioner) Begin(k.KinesumerHandlers) error {
 	return nil
 }
 
-func (l *Provisioner) End() {
+func (p *Provisioner) End() {
 }
 
-func (l *Provisioner) TryAcquire(shardID *string) error {
+func (p *Provisioner) TryAcquire(shardID *string) error {
 	return nil
 }
 
-func (l *Provisioner) Release(shardID *string) error {
+func (p *Provisioner) Release(shardID *string) error {
+	return nil
+}
+
+func (p *Provisioner) HeartbeatC() chan string {
 	return nil
 }
