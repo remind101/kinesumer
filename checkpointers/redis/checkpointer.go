@@ -18,23 +18,30 @@ type Checkpointer struct {
 	wg          sync.WaitGroup
 	modified    bool
 	handlers    k.Handlers
+	readOnly    bool
 }
 
 type CheckpointerOptions struct {
+	ReadOnly    bool
 	SavePeriod  time.Duration
 	RedisPool   *redis.Pool
 	RedisPrefix string
 }
 
 func NewRedisCheckpointer(opt *CheckpointerOptions) (*Checkpointer, error) {
+	save := opt.SavePeriod
+	if save == 0 {
+		save = 5 * time.Second
+	}
 	return &Checkpointer{
 		heads:       make(map[string]string),
 		c:           make(chan k.Record),
 		mut:         sync.Mutex{},
 		pool:        opt.RedisPool,
 		redisPrefix: opt.RedisPrefix,
-		savePeriod:  opt.SavePeriod,
+		savePeriod:  save,
 		modified:    true,
+		readOnly:    opt.ReadOnly,
 	}, nil
 }
 
@@ -43,6 +50,10 @@ func (r *Checkpointer) DoneC() chan<- k.Record {
 }
 
 func (r *Checkpointer) Sync() {
+	if r.readOnly {
+		return
+	}
+
 	r.mut.Lock()
 	defer r.mut.Unlock()
 	if len(r.heads) > 0 && r.modified {

@@ -32,7 +32,10 @@ func runTail(ctx *cli.Context) {
 	if err != nil {
 		panic(err)
 	}
-	k.Begin()
+	err = k.Begin()
+	if err != nil {
+		panic(err)
+	}
 	defer k.End()
 	for {
 		rec := <-k.Records()

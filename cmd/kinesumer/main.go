@@ -18,6 +18,7 @@ func main() {
 		},
 	}
 	app.Commands = []cli.Command{
+		cmdStatus,
 		cmdTail,
 	}
 	app.Run(os.Args)
