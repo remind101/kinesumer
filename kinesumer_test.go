@@ -1,6 +1,7 @@
 package kinesumer
 
 import (
+	"math/rand"
 	"testing"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -17,8 +18,10 @@ func makeTestKinesumer(t *testing.T) (*Kinesumer, *mocks.Kinesis, *mocks.Checkpo
 	k, err := NewKinesumer(
 		kin,
 		sssm,
+		nil,
+		rand.NewSource(0),
 		"TestStream",
-		&DefaultKinesumerOptions,
+		nil,
 	)
 	if err != nil {
 		t.Error(err)
