@@ -45,7 +45,7 @@ var DefaultKinesumerOptions = KinesumerOptions{
 
 	PollTime:        2000,
 	MaxShardWorkers: 50,
-	Handlers:        k.DefaultHandlers{},
+	Handlers:        DefaultHandlers{},
 }
 
 func NewDefaultKinesumer(awsAccessKey, awsSecretKey, awsRegion, stream string) (*Kinesumer, error) {
