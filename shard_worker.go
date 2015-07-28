@@ -17,6 +17,8 @@ type ShardWorker struct {
 	stop            <-chan Unit
 	stopped         chan<- Unit
 	c               chan *k.KinesisRecord
+	provisioner     k.Provisioner
+	handlers        k.KinesumerHandlers
 	GetRecordsLimit int64
 }
 
@@ -63,10 +65,15 @@ func (s *ShardWorker) GetRecordsAndProcess(it, sequence *string) (cont bool, nex
 			}
 			nextIt = s.TryGetShardIterator("AFTER_SEQUENCE_NUMBER", sequence)
 		}
+
+		if err := s.provisioner.Heartbeat(*s.shard.ShardID); err != nil {
+			s.handlers.Err(k.NewKinesumerError(k.KinesumerEError, "Heartbeat failed", err))
+			return true, nil, sequence
+		}
 		// GetRecords is not guaranteed to return records even if there are records to be read.
-		// However, if our lag time behind the shard head is less than 3 seconds then there's probably
+		// However, if our lag time behind the shard head is <= 3 seconds then there's probably
 		// no records.
-		if lag < 30000 /* milliseconds */ {
+		if lag <= 3000 /* milliseconds */ {
 			select {
 			case <-time.NewTimer(time.Duration(s.pollTime) * time.Millisecond).C:
 			case <-s.stop:
@@ -80,6 +87,11 @@ func (s *ShardWorker) GetRecordsAndProcess(it, sequence *string) (cont bool, nex
 				ShardID:            s.shard.ShardID,
 				CheckpointC:        s.checkpointer.DoneC(),
 				MillisBehindLatest: lag,
+			}
+
+			if err := s.provisioner.Heartbeat(*s.shard.ShardID); err != nil {
+				s.handlers.Err(k.NewKinesumerError(k.KinesumerEError, "Heartbeat failed", err))
+				return true, nil, sequence
 			}
 		}
 		sequence = records[len(records)-1].SequenceNumber
@@ -109,6 +121,11 @@ func (s *ShardWorker) RunWorker() {
 
 loop:
 	for {
+		if err := s.provisioner.Heartbeat(*s.shard.ShardID); err != nil {
+			s.handlers.Err(k.NewKinesumerError(k.KinesumerEError, "Heartbeat failed", err))
+			break loop
+		}
+
 		if end != nil && *sequence == *end {
 			s.c <- &k.KinesisRecord{
 				ShardID: s.shard.ShardID,

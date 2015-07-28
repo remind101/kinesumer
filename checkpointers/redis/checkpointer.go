@@ -55,7 +55,7 @@ func (r *Checkpointer) Sync() {
 	}
 }
 
-func (r *Checkpointer) RunShardSync() {
+func (r *Checkpointer) RunCheckpointer() {
 	saveTicker := time.NewTicker(r.savePeriod).C
 loop:
 	for {
@@ -88,7 +88,9 @@ func (r *Checkpointer) Begin(handlers k.KinesumerHandlers) error {
 	}
 
 	r.wg.Add(1)
-	go r.RunShardSync()
+	r.handlers.Go(func() {
+		r.RunCheckpointer()
+	})
 	return nil
 }
 

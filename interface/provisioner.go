@@ -1,9 +1,12 @@
 package kinesumeriface
 
+import (
+	"time"
+)
+
 type Provisioner interface {
-	Begin(handlers KinesumerHandlers) error
-	End()
 	TryAcquire(shardID *string) error
 	Release(shardID *string) error
-	HeartbeatC() chan string
+	Heartbeat(shardID string) error
+	TTL() time.Duration
 }

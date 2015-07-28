@@ -41,8 +41,8 @@ var DefaultKinesumerOptions = KinesumerOptions{
 	ListStreamsLimit:    1000,
 	DescribeStreamLimit: 10000,
 	GetRecordsLimit:     10000,
-	PollTime:            2000,
 
+	PollTime:        2000,
 	MaxShardWorkers: 50,
 	Handlers:        k.DefaultKinesumerHandlers{},
 }
@@ -71,11 +71,11 @@ func NewKinesumer(kinesis k.Kinesis, checkpointer k.Checkpointer, provisioner k.
 	}
 
 	if checkpointer == nil {
-		checkpointer = &emptycheckpointer.Checkpointer{}
+		checkpointer = emptycheckpointer.Checkpointer{}
 	}
 
 	if provisioner == nil {
-		provisioner = &emptyprovisioner.Provisioner{}
+		provisioner = emptyprovisioner.Provisioner{}
 	}
 
 	if randSource == nil {
@@ -160,13 +160,13 @@ func (kin *Kinesumer) LaunchShardWorker(shards []*kinesis.Shard) (int, error) {
 				stop:            kin.stop,
 				stopped:         kin.stopped,
 				c:               kin.records,
+				provisioner:     kin.Provisioner,
+				handlers:        kin.Options.Handlers,
 				GetRecordsLimit: kin.Options.GetRecordsLimit,
 			}
-			kin.Options.Handlers.Go(
-				func() {
-					worker.RunWorker()
-				},
-			)
+			kin.Options.Handlers.Go(func() {
+				worker.RunWorker()
+			})
 			kin.nRunning++
 			return j, nil
 		}
@@ -190,15 +190,21 @@ func (kin *Kinesumer) Begin() (err error) {
 		n = len(shards)
 	}
 
-	kin.stop = make(chan Unit, kin.nRunning)
-	kin.stopped = make(chan Unit, kin.nRunning)
-	for i := 0; i < n; i++ {
-		j, err := kin.LaunchShardWorker(shards)
-		if err != nil {
-			kin.End()
-			return err
+	start := time.Now()
+	tryTime := 2 * kin.Provisioner.TTL()
+
+	kin.stop = make(chan Unit, n)
+	kin.stopped = make(chan Unit, n)
+	for kin.nRunning < n && len(shards) > 0 && time.Now().Sub(start) < tryTime {
+		for i := 0; i < n; i++ {
+			j, err := kin.LaunchShardWorker(shards)
+			if err != nil {
+				kin.Options.Handlers.Err(k.NewKinesumerError(k.KinesumerEWarn, "Could not start shard worker", err))
+			} else {
+				shards = append(shards[:j], shards[j+1:]...)
+			}
 		}
-		shards = append(shards[:j], shards[j+1:]...)
+		time.Sleep(500 * time.Millisecond)
 	}
 
 	return

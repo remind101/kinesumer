@@ -3,6 +3,7 @@ package kinesumer
 import (
 	"math/rand"
 	"testing"
+	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
@@ -12,13 +13,15 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-func makeTestKinesumer(t *testing.T) (*Kinesumer, *mocks.Kinesis, *mocks.Checkpointer) {
+func makeTestKinesumer(t *testing.T) (*Kinesumer, *mocks.Kinesis, *mocks.Checkpointer,
+	*mocks.Provisioner) {
 	kin := new(mocks.Kinesis)
 	sssm := new(mocks.Checkpointer)
+	prov := new(mocks.Provisioner)
 	k, err := NewKinesumer(
 		kin,
 		sssm,
-		nil,
+		prov,
 		rand.NewSource(0),
 		"TestStream",
 		nil,
@@ -26,11 +29,11 @@ func makeTestKinesumer(t *testing.T) (*Kinesumer, *mocks.Kinesis, *mocks.Checkpo
 	if err != nil {
 		t.Error(err)
 	}
-	return k, kin, sssm
+	return k, kin, sssm, prov
 }
 
 func TestKinesumerGetStreams(t *testing.T) {
-	k, kin, _ := makeTestKinesumer(t)
+	k, kin, _, _ := makeTestKinesumer(t)
 	kin.On("ListStreamsPages", mock.Anything, mock.Anything).Return(nil)
 	streams, err := k.GetStreams()
 	assert.Nil(t, err)
@@ -40,7 +43,7 @@ func TestKinesumerGetStreams(t *testing.T) {
 }
 
 func TestKinesumerStreamExists(t *testing.T) {
-	k, kin, _ := makeTestKinesumer(t)
+	k, kin, _, _ := makeTestKinesumer(t)
 	k.Stream = aws.String("c")
 	kin.On("ListStreamsPages", mock.Anything, mock.Anything).Return(nil)
 	e, err := k.StreamExists()
@@ -50,7 +53,7 @@ func TestKinesumerStreamExists(t *testing.T) {
 }
 
 func TestKinesumerGetShards(t *testing.T) {
-	k, kin, _ := makeTestKinesumer(t)
+	k, kin, _, _ := makeTestKinesumer(t)
 	k.Stream = aws.String("c")
 	kin.On("DescribeStreamPages", mock.Anything, mock.Anything).Return(nil)
 	shards, err := k.GetShards()
@@ -61,13 +64,16 @@ func TestKinesumerGetShards(t *testing.T) {
 }
 
 func TestKinesumerBeginEnd(t *testing.T) {
-	k, kin, sssm := makeTestKinesumer(t)
+	k, kin, sssm, prov := makeTestKinesumer(t)
 	k.Stream = aws.String("c")
 
 	kin.On("DescribeStreamPages", mock.Anything, mock.Anything).Return(awserr.New("bad", "bad", nil)).Once()
 	err := k.Begin()
 	assert.Error(t, err)
 
+	prov.On("TTL").Return(time.Millisecond * 10)
+	prov.On("TryAcquire", mock.Anything).Return(nil)
+	prov.On("Heartbeat", mock.Anything).Return(nil)
 	kin.On("DescribeStreamPages", mock.Anything, mock.Anything).Return(awserr.Error(nil))
 	sssm.On("Begin", mock.Anything).Return(nil)
 	sssm.On("GetStartSequence", mock.Anything).Return(aws.String("0")).Once()

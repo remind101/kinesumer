@@ -1,27 +1,24 @@
 package emptyprovisioner
 
 import (
-	k "github.com/remind101/kinesumer/interface"
+	"time"
 )
 
 type Provisioner struct {
 }
 
-func (p *Provisioner) Begin(k.KinesumerHandlers) error {
+func (p Provisioner) TryAcquire(shardID *string) error {
 	return nil
 }
 
-func (p *Provisioner) End() {
-}
-
-func (p *Provisioner) TryAcquire(shardID *string) error {
+func (p Provisioner) Release(shardID *string) error {
 	return nil
 }
 
-func (p *Provisioner) Release(shardID *string) error {
+func (p Provisioner) Heartbeat(shardID string) error {
 	return nil
 }
 
-func (p *Provisioner) HeartbeatC() chan string {
-	return nil
+func (p Provisioner) TTL() time.Duration {
+	return 0
 }

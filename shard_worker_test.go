@@ -14,10 +14,21 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-func makeTestShardWorker() (*ShardWorker, *mocks.Kinesis, *mocks.Checkpointer, chan Unit,
-	chan Unit, chan *k.KinesisRecord) {
+type TestHandlers struct{}
+
+func (t TestHandlers) Go(f func()) {
+	f()
+}
+
+func (t TestHandlers) Err(e *k.KinesumerError) {
+	panic(e)
+}
+
+func makeTestShardWorker() (*ShardWorker, *mocks.Kinesis, *mocks.Checkpointer, *mocks.Provisioner,
+	chan Unit, chan Unit, chan *k.KinesisRecord) {
 	kin := new(mocks.Kinesis)
 	sssm := new(mocks.Checkpointer)
+	prov := new(mocks.Provisioner)
 	stop := make(chan Unit, 1)
 	stopped := make(chan Unit, 1)
 	c := make(chan *k.KinesisRecord, 100)
@@ -43,12 +54,14 @@ func makeTestShardWorker() (*ShardWorker, *mocks.Kinesis, *mocks.Checkpointer, c
 		stop:            stop,
 		stopped:         stopped,
 		c:               c,
+		provisioner:     prov,
+		handlers:        TestHandlers{},
 		GetRecordsLimit: 123,
-	}, kin, sssm, stop, stopped, c
+	}, kin, sssm, prov, stop, stopped, c
 }
 
 func TestShardWorkerGetShardIterator(t *testing.T) {
-	s, kin, _, _, _, _ := makeTestShardWorker()
+	s, kin, _, _, _, _, _ := makeTestShardWorker()
 
 	kin.On("GetShardIterator", mock.Anything).Return(&kinesis.GetShardIteratorOutput{
 		ShardIterator: aws.String("AAAAA"),
@@ -59,7 +72,7 @@ func TestShardWorkerGetShardIterator(t *testing.T) {
 }
 
 func TestShardWorkerTryGetShardIterator(t *testing.T) {
-	s, kin, _, _, _, _ := makeTestShardWorker()
+	s, kin, _, _, _, _, _ := makeTestShardWorker()
 
 	kin.On("GetShardIterator", mock.Anything).Return(nil, awserr.New("bad", "bad", errors.New("bad")))
 	assert.Panics(t, func() {
@@ -68,7 +81,7 @@ func TestShardWorkerTryGetShardIterator(t *testing.T) {
 }
 
 func TestShardWorkerGetRecords(t *testing.T) {
-	s, kin, _, _, _, _ := makeTestShardWorker()
+	s, kin, _, _, _, _, _ := makeTestShardWorker()
 
 	kin.On("GetRecords", mock.Anything).Return(&kinesis.GetRecordsOutput{
 		MillisBehindLatest: aws.Long(0),
@@ -84,7 +97,9 @@ func TestShardWorkerGetRecords(t *testing.T) {
 }
 
 func TestShardWorkerGetRecordsAndProcess(t *testing.T) {
-	s, kin, sssm, stp, _, c := makeTestShardWorker()
+	s, kin, sssm, prov, stp, _, c := makeTestShardWorker()
+
+	prov.On("Heartbeat", mock.Anything).Return(nil)
 
 	record1 := kinesis.Record{
 		Data:           []byte("help I'm trapped"),
@@ -123,7 +138,9 @@ func TestShardWorkerGetRecordsAndProcess(t *testing.T) {
 }
 
 func TestShardWorkerRun(t *testing.T) {
-	s, kin, sssm, stp, stpd, c := makeTestShardWorker()
+	s, kin, sssm, prov, stp, stpd, c := makeTestShardWorker()
+
+	prov.On("Heartbeat", mock.Anything).Return(nil)
 	sssm.On("GetStartSequence", mock.Anything).Return(aws.String("AAAA"))
 
 	record1 := kinesis.Record{
