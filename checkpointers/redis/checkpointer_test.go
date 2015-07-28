@@ -122,8 +122,8 @@ func TestGetStartSequence(t *testing.T) {
 	_ = r.Begin(TestHandlers{})
 	r.End()
 	shard1 := "shard1"
-	seq := r.GetStartSequence(&shard1)
-	if seq == nil || *seq != "1000" {
+	seq := r.GetStartSequence(shard1)
+	if seq != "1000" {
 		t.Error("Expected nonempty sequence number")
 	}
 }

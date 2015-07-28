@@ -29,27 +29,24 @@ func (m *Checkpointer) Begin(_a0 k.Handlers) error {
 func (m *Checkpointer) End() {
 	m.Called()
 }
-func (m *Checkpointer) GetStartSequence(shardID *string) *string {
+func (m *Checkpointer) GetStartSequence(shardID string) string {
 	ret := m.Called(shardID)
 
-	var r0 *string
-	if ret.Get(0) != nil {
-		r0 = ret.Get(0).(*string)
-	}
+	r0 := ret.String(0)
 
 	return r0
 }
 func (m *Checkpointer) Sync() {
 	m.Called()
 }
-func (m *Checkpointer) TryAcquire(shardID *string) error {
+func (m *Checkpointer) TryAcquire(shardID string) error {
 	ret := m.Called(shardID)
 
 	r0 := ret.Error(0)
 
 	return r0
 }
-func (m *Checkpointer) Release(shardID *string) error {
+func (m *Checkpointer) Release(shardID string) error {
 	ret := m.Called(shardID)
 
 	r0 := ret.Error(0)

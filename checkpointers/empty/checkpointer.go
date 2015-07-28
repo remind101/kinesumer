@@ -18,17 +18,17 @@ func (p Checkpointer) Begin(k.Handlers) error {
 func (p Checkpointer) End() {
 }
 
-func (p Checkpointer) GetStartSequence(*string) *string {
-	return nil
+func (p Checkpointer) GetStartSequence(string) string {
+	return ""
 }
 
 func (p Checkpointer) Sync() {
 }
 
-func (p Checkpointer) TryAcquire(shardID *string) error {
+func (p Checkpointer) TryAcquire(shardID string) error {
 	return nil
 }
 
-func (p Checkpointer) Release(shardID *string) error {
+func (p Checkpointer) Release(shardID string) error {
 	return nil
 }

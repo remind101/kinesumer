@@ -3,6 +3,7 @@ package kinesumer
 import (
 	"time"
 
+	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/kinesis"
 	k "github.com/remind101/kinesumer/interface"
 )
@@ -11,9 +12,9 @@ type ShardWorker struct {
 	kinesis         k.Kinesis
 	shard           *kinesis.Shard
 	checkpointer    k.Checkpointer
-	stream          *string
+	stream          string
 	pollTime        int
-	sequence        *string
+	sequence        string
 	stop            <-chan Unit
 	stopped         chan<- Unit
 	c               chan k.Record
@@ -22,20 +23,24 @@ type ShardWorker struct {
 	GetRecordsLimit int64
 }
 
-func (s *ShardWorker) GetShardIterator(iteratorType string, sequence *string) (*string, error) {
+func (s *ShardWorker) GetShardIterator(iteratorType string, sequence string) (string, error) {
+	var tmp *string
+	if len(sequence) > 0 {
+		tmp = &sequence
+	}
 	iter, err := s.kinesis.GetShardIterator(&kinesis.GetShardIteratorInput{
 		ShardID:                s.shard.ShardID,
 		ShardIteratorType:      &iteratorType,
-		StartingSequenceNumber: sequence,
-		StreamName:             s.stream,
+		StartingSequenceNumber: tmp,
+		StreamName:             &s.stream,
 	})
 	if err != nil {
-		return nil, err
+		return "", err
 	}
-	return iter.ShardIterator, nil
+	return aws.StringValue(iter.ShardIterator), nil
 }
 
-func (s *ShardWorker) TryGetShardIterator(iteratorType string, sequence *string) *string {
+func (s *ShardWorker) TryGetShardIterator(iteratorType string, sequence string) string {
 	it, err := s.GetShardIterator(iteratorType, sequence)
 	if err != nil {
 		panic(err)
@@ -43,18 +48,18 @@ func (s *ShardWorker) TryGetShardIterator(iteratorType string, sequence *string)
 	return it
 }
 
-func (s *ShardWorker) GetRecords(it *string) ([]*kinesis.Record, *string, int64, error) {
+func (s *ShardWorker) GetRecords(it string) ([]*kinesis.Record, string, int64, error) {
 	resp, err := s.kinesis.GetRecords(&kinesis.GetRecordsInput{
 		Limit:         &s.GetRecordsLimit,
-		ShardIterator: it,
+		ShardIterator: &it,
 	})
 	if err != nil {
-		return nil, nil, 0, err
+		return nil, "", 0, err
 	}
-	return resp.Records, resp.NextShardIterator, *resp.MillisBehindLatest, nil
+	return resp.Records, aws.StringValue(resp.NextShardIterator), aws.Int64Value(resp.MillisBehindLatest), nil
 }
 
-func (s *ShardWorker) GetRecordsAndProcess(it, sequence *string) (cont bool, nextIt *string, nextSeq *string) {
+func (s *ShardWorker) GetRecordsAndProcess(it, sequence string) (cont bool, nextIt string, nextSeq string) {
 	records, nextIt, lag, err := s.GetRecords(it)
 	if err != nil || len(records) == 0 {
 		if err != nil {
@@ -62,9 +67,9 @@ func (s *ShardWorker) GetRecordsAndProcess(it, sequence *string) (cont bool, nex
 			nextIt = s.TryGetShardIterator("AFTER_SEQUENCE_NUMBER", sequence)
 		}
 
-		if err := s.provisioner.Heartbeat(*s.shard.ShardID); err != nil {
+		if err := s.provisioner.Heartbeat(aws.StringValue(s.shard.ShardID)); err != nil {
 			s.handlers.Err(NewError(EError, "Heartbeat failed", err))
-			return true, nil, sequence
+			return true, "", sequence
 		}
 		// GetRecords is not guaranteed to return records even if there are records to be read.
 		// However, if our lag time behind the shard head is <= 3 seconds then there's probably
@@ -73,56 +78,56 @@ func (s *ShardWorker) GetRecordsAndProcess(it, sequence *string) (cont bool, nex
 			select {
 			case <-time.NewTimer(time.Duration(s.pollTime) * time.Millisecond).C:
 			case <-s.stop:
-				return true, nil, sequence
+				return true, "", sequence
 			}
 		}
 	} else {
 		for _, rec := range records {
 			s.c <- &Record{
 				data:               rec.Data,
-				partitionKey:       *rec.PartitionKey,
-				sequenceNumber:     *rec.SequenceNumber,
-				shardID:            *s.shard.ShardID,
+				partitionKey:       aws.StringValue(rec.PartitionKey),
+				sequenceNumber:     aws.StringValue(rec.SequenceNumber),
+				shardID:            aws.StringValue(s.shard.ShardID),
 				millisBehindLatest: lag,
 				checkpointC:        s.checkpointer.DoneC(),
 			}
 
-			if err := s.provisioner.Heartbeat(*s.shard.ShardID); err != nil {
+			if err := s.provisioner.Heartbeat(aws.StringValue(s.shard.ShardID)); err != nil {
 				s.handlers.Err(NewError(EError, "Heartbeat failed", err))
-				return true, nil, sequence
+				return true, "", sequence
 			}
 		}
-		sequence = records[len(records)-1].SequenceNumber
+		sequence = aws.StringValue(records[len(records)-1].SequenceNumber)
 	}
 	return false, nextIt, sequence
 }
 
 func (s *ShardWorker) RunWorker() {
 	defer func() {
-		s.provisioner.Release(s.shard.ShardID)
+		s.provisioner.Release(aws.StringValue(s.shard.ShardID))
 		s.stopped <- Unit{}
 	}()
 
-	sequence := s.checkpointer.GetStartSequence(s.shard.ShardID)
+	sequence := s.checkpointer.GetStartSequence(aws.StringValue(s.shard.ShardID))
 	end := s.shard.SequenceNumberRange.EndingSequenceNumber
-	var it *string
-	if sequence == nil || len(*sequence) == 0 {
-		sequence = s.shard.SequenceNumberRange.StartingSequenceNumber
+	var it string
+	if len(sequence) == 0 {
+		sequence = aws.StringValue(s.shard.SequenceNumberRange.StartingSequenceNumber)
 
 		s.handlers.Err(NewError(EWarn, "Using TRIM_HORIZON", nil))
-		it = s.TryGetShardIterator("TRIM_HORIZON", nil)
+		it = s.TryGetShardIterator("TRIM_HORIZON", "")
 	} else {
 		it = s.TryGetShardIterator("AFTER_SEQUENCE_NUMBER", sequence)
 	}
 
 loop:
 	for {
-		if err := s.provisioner.Heartbeat(*s.shard.ShardID); err != nil {
+		if err := s.provisioner.Heartbeat(aws.StringValue(s.shard.ShardID)); err != nil {
 			s.handlers.Err(NewError(EError, "Heartbeat failed", err))
 			break loop
 		}
 
-		if end != nil && *sequence == *end {
+		if end != nil && sequence == *end {
 			s.handlers.Err(NewError(EWarn, "Shard has reached its end", nil))
 			break loop
 		}

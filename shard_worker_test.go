@@ -39,8 +39,8 @@ func makeTestShardWorker() (*ShardWorker, *mocks.Kinesis, *mocks.Checkpointer, *
 			ShardID: aws.String("shard0"),
 		},
 		checkpointer:    sssm,
-		stream:          aws.String("TestStream"),
-		sequence:        aws.String("123"),
+		stream:          "TestStream",
+		sequence:        "123",
 		stop:            stop,
 		stopped:         stopped,
 		c:               c,
@@ -56,9 +56,9 @@ func TestShardWorkerGetShardIterator(t *testing.T) {
 	kin.On("GetShardIterator", mock.Anything).Return(&kinesis.GetShardIteratorOutput{
 		ShardIterator: aws.String("AAAAA"),
 	}, awserr.Error(nil))
-	res, err := s.GetShardIterator("TYPE", aws.String("123"))
+	res, err := s.GetShardIterator("TYPE", "123")
 	assert.Nil(t, err)
-	assert.Equal(t, "AAAAA", *res)
+	assert.Equal(t, "AAAAA", res)
 }
 
 func TestShardWorkerTryGetShardIterator(t *testing.T) {
@@ -66,7 +66,7 @@ func TestShardWorkerTryGetShardIterator(t *testing.T) {
 
 	kin.On("GetShardIterator", mock.Anything).Return(nil, awserr.New("bad", "bad", errors.New("bad")))
 	assert.Panics(t, func() {
-		s.TryGetShardIterator("TYPE", aws.String("123"))
+		s.TryGetShardIterator("TYPE", "123")
 	})
 }
 
@@ -79,10 +79,10 @@ func TestShardWorkerGetRecords(t *testing.T) {
 		Records:            []*kinesis.Record{},
 	}, awserr.Error(nil))
 
-	records, nextIt, mills, err := s.GetRecords(aws.String("AAAA"))
+	records, nextIt, mills, err := s.GetRecords("AAAA")
 	assert.Nil(t, err)
 	assert.Equal(t, 0, len(records))
-	assert.Equal(t, "AAAA", *nextIt)
+	assert.Equal(t, "AAAA", nextIt)
 	assert.Equal(t, int64(0), mills)
 }
 
@@ -103,12 +103,12 @@ func TestShardWorkerGetRecordsAndProcess(t *testing.T) {
 	}, awserr.Error(nil)).Once()
 	doneC := make(chan k.Record)
 	sssm.On("DoneC").Return(doneC)
-	brk, nextIt, nextSeq := s.GetRecordsAndProcess(aws.String("AAAA"), aws.String("123"))
+	brk, nextIt, nextSeq := s.GetRecordsAndProcess("AAAA", "123")
 	rec := <-c
 	assert.Equal(t, record1.Data, rec.Data())
 	assert.False(t, brk)
-	assert.Equal(t, "AAAA", *nextIt)
-	assert.Equal(t, "123", *nextSeq)
+	assert.Equal(t, "AAAA", nextIt)
+	assert.Equal(t, "123", nextSeq)
 
 	resetTestHandlers()
 	err := awserr.New("bad", "bad", nil)
@@ -121,7 +121,7 @@ func TestShardWorkerGetRecordsAndProcess(t *testing.T) {
 	kin.On("GetShardIterator", mock.Anything).Return(&kinesis.GetShardIteratorOutput{
 		ShardIterator: aws.String("AAAA"),
 	}, awserr.Error(nil))
-	brk, nextIt, nextSeq = s.GetRecordsAndProcess(aws.String("AAAA"), aws.String("123"))
+	brk, nextIt, nextSeq = s.GetRecordsAndProcess("AAAA", "123")
 	assert.Equal(t, err, errs[0].Origin())
 	kin.AssertNumberOfCalls(t, "GetShardIterator", 1)
 	assert.True(t, brk)
@@ -132,7 +132,7 @@ func TestShardWorkerRun(t *testing.T) {
 
 	prov.On("Heartbeat", mock.Anything).Return(nil)
 	prov.On("Release", mock.Anything).Return(nil)
-	sssm.On("GetStartSequence", mock.Anything).Return(aws.String("AAAA"))
+	sssm.On("GetStartSequence", mock.Anything).Return("AAAA")
 
 	resetTestHandlers()
 	record1 := kinesis.Record{

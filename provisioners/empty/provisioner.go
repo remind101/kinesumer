@@ -7,11 +7,11 @@ import (
 type Provisioner struct {
 }
 
-func (p Provisioner) TryAcquire(shardID *string) error {
+func (p Provisioner) TryAcquire(shardID string) error {
 	return nil
 }
 
-func (p Provisioner) Release(shardID *string) error {
+func (p Provisioner) Release(shardID string) error {
 	return nil
 }
 

@@ -10,14 +10,14 @@ type Provisioner struct {
 	mock.Mock
 }
 
-func (m *Provisioner) TryAcquire(shardID *string) error {
+func (m *Provisioner) TryAcquire(shardID string) error {
 	ret := m.Called(shardID)
 
 	r0 := ret.Error(0)
 
 	return r0
 }
-func (m *Provisioner) Release(shardID *string) error {
+func (m *Provisioner) Release(shardID string) error {
 	ret := m.Called(shardID)
 
 	r0 := ret.Error(0)

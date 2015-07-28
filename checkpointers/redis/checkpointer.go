@@ -99,11 +99,11 @@ func (r *Checkpointer) End() {
 	r.wg.Wait()
 }
 
-func (r *Checkpointer) GetStartSequence(shardID *string) *string {
-	val, ok := r.heads[*shardID]
+func (r *Checkpointer) GetStartSequence(shardID string) string {
+	val, ok := r.heads[shardID]
 	if ok {
-		return &val
+		return val
 	} else {
-		return nil
+		return ""
 	}
 }

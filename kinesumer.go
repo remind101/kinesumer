@@ -17,7 +17,7 @@ type Kinesumer struct {
 	Kinesis      k.Kinesis
 	Checkpointer k.Checkpointer
 	Provisioner  k.Provisioner
-	Stream       *string
+	Stream       string
 	Options      *KinesumerOptions
 	records      chan k.Record
 	stop         chan Unit
@@ -95,19 +95,19 @@ func NewKinesumer(kinesis k.Kinesis, checkpointer k.Checkpointer, provisioner k.
 		Kinesis:      kinesis,
 		Checkpointer: checkpointer,
 		Provisioner:  provisioner,
-		Stream:       &stream,
+		Stream:       stream,
 		Options:      opt,
 		records:      make(chan k.Record, opt.GetRecordsLimit*2+10),
 		rand:         rand.New(randSource),
 	}, nil
 }
 
-func (kin *Kinesumer) GetStreams() (streams []*string, err error) {
-	streams = make([]*string, 0)
+func (kin *Kinesumer) GetStreams() (streams []string, err error) {
+	streams = make([]string, 0)
 	err = kin.Kinesis.ListStreamsPages(&kinesis.ListStreamsInput{
 		Limit: &kin.Options.ListStreamsLimit,
 	}, func(sts *kinesis.ListStreamsOutput, _ bool) bool {
-		streams = append(streams, sts.StreamNames...)
+		streams = append(streams, aws.StringValueSlice(sts.StreamNames)...)
 		return true
 	})
 	return
@@ -119,7 +119,7 @@ func (kin *Kinesumer) StreamExists() (found bool, err error) {
 		return
 	}
 	for _, stream := range streams {
-		if *stream == *kin.Stream {
+		if stream == kin.Stream {
 			return true, nil
 		}
 	}
@@ -130,13 +130,13 @@ func (kin *Kinesumer) GetShards() (shards []*kinesis.Shard, err error) {
 	shards = make([]*kinesis.Shard, 0)
 	err = kin.Kinesis.DescribeStreamPages(&kinesis.DescribeStreamInput{
 		Limit:      &kin.Options.DescribeStreamLimit,
-		StreamName: kin.Stream,
+		StreamName: &kin.Stream,
 	}, func(desc *kinesis.DescribeStreamOutput, _ bool) bool {
-		if desc == nil {
+		if desc == nil || desc.StreamDescription == nil {
 			err = errors.New("Stream could not be described")
 			return false
 		}
-		if *desc.StreamDescription.StreamStatus == "DELETING" {
+		if aws.StringValue(desc.StreamDescription.StreamStatus) == "DELETING" {
 			err = errors.New("Stream is being deleted")
 			return false
 		}
@@ -149,7 +149,7 @@ func (kin *Kinesumer) GetShards() (shards []*kinesis.Shard, err error) {
 func (kin *Kinesumer) LaunchShardWorker(shards []*kinesis.Shard) (int, error) {
 	perm := kin.rand.Perm(len(shards))
 	for _, j := range perm {
-		err := kin.Provisioner.TryAcquire(shards[j].ShardID)
+		err := kin.Provisioner.TryAcquire(aws.StringValue(shards[j].ShardID))
 		if err == nil {
 			worker := &ShardWorker{
 				kinesis:         kin.Kinesis,

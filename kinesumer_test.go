@@ -41,12 +41,12 @@ func TestKinesumerGetStreams(t *testing.T) {
 	assert.Nil(t, err)
 	kin.AssertNumberOfCalls(t, "ListStreamsPages", 1)
 	assert.Equal(t, 3, len(streams))
-	assert.Equal(t, *streams[2], "c")
+	assert.Equal(t, streams[2], "c")
 }
 
 func TestKinesumerStreamExists(t *testing.T) {
 	k, kin, _, _ := makeTestKinesumer(t)
-	k.Stream = aws.String("c")
+	k.Stream = "c"
 	kin.On("ListStreamsPages", mock.Anything, mock.Anything).Return(nil)
 	e, err := k.StreamExists()
 	assert.Nil(t, err)
@@ -56,7 +56,7 @@ func TestKinesumerStreamExists(t *testing.T) {
 
 func TestKinesumerGetShards(t *testing.T) {
 	k, kin, _, _ := makeTestKinesumer(t)
-	k.Stream = aws.String("c")
+	k.Stream = "c"
 	kin.On("DescribeStreamPages", mock.Anything, mock.Anything).Return(nil)
 	shards, err := k.GetShards()
 	assert.Nil(t, err)
@@ -67,7 +67,7 @@ func TestKinesumerGetShards(t *testing.T) {
 
 func TestKinesumerBeginEnd(t *testing.T) {
 	k, kin, sssm, prov := makeTestKinesumer(t)
-	k.Stream = aws.String("c")
+	k.Stream = "c"
 
 	kin.On("DescribeStreamPages", mock.Anything, mock.Anything).Return(awserr.New("bad", "bad", nil)).Once()
 	err := k.Begin()
@@ -80,8 +80,8 @@ func TestKinesumerBeginEnd(t *testing.T) {
 	prov.On("Release", mock.Anything).Return(nil)
 	kin.On("DescribeStreamPages", mock.Anything, mock.Anything).Return(awserr.Error(nil))
 	sssm.On("Begin", mock.Anything).Return(nil)
-	sssm.On("GetStartSequence", mock.Anything).Return(aws.String("0")).Once()
-	sssm.On("GetStartSequence", mock.Anything).Return(nil)
+	sssm.On("GetStartSequence", mock.Anything).Return("0").Once()
+	sssm.On("GetStartSequence", mock.Anything).Return("")
 	sssm.On("TryAcquire", mock.Anything).Return(nil)
 	kin.On("GetShardIterator", mock.Anything).Return(&kinesis.GetShardIteratorOutput{
 		ShardIterator: aws.String("0"),

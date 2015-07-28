@@ -29,15 +29,19 @@ func New(ttl time.Duration, redisPool *redis.Pool, prefix string) (*Provisioner,
 	}, nil
 }
 
-func (p *Provisioner) TryAcquire(shardID *string) error {
+func (p *Provisioner) TryAcquire(shardID string) error {
+	if len(shardID) == 0 {
+		return errors.New("ShardID cannot be empty")
+	}
+
 	conn := p.pool.Get()
 	defer conn.Close()
 
-	if p.acquired[*shardID] {
+	if p.acquired[shardID] {
 		return errors.New("Lock already acquired by this process")
 	}
 
-	res, err := conn.Do("SET", p.redisPrefix+":lock:"+*shardID, p.lock, "PX", p.ttl/time.Millisecond, "NX")
+	res, err := conn.Do("SET", p.redisPrefix+":lock:"+shardID, p.lock, "PX", p.ttl/time.Millisecond, "NX")
 	if err != nil {
 		return err
 	}
@@ -45,17 +49,17 @@ func (p *Provisioner) TryAcquire(shardID *string) error {
 		return errors.New("Failed to acquire lock")
 	}
 
-	p.acquired[*shardID] = true
+	p.acquired[shardID] = true
 	return nil
 }
 
-func (p *Provisioner) Release(shardID *string) error {
+func (p *Provisioner) Release(shardID string) error {
 	conn := p.pool.Get()
 	defer conn.Close()
 
-	delete(p.acquired, *shardID)
+	delete(p.acquired, shardID)
 
-	key := p.redisPrefix + ":lock:" + *shardID
+	key := p.redisPrefix + ":lock:" + shardID
 	res, err := redis.String(conn.Do("GET", key))
 	if err != nil {
 		return err
@@ -103,7 +107,7 @@ func (p *Provisioner) Heartbeat(shardID string) error {
 
 	res, err = conn.Do("PEXPIRE", lockKey, p.ttl/time.Millisecond)
 	if err != nil {
-		err := p.TryAcquire(&shardID)
+		err := p.TryAcquire(shardID)
 		if err != nil {
 			return err
 		}
