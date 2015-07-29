@@ -5,6 +5,8 @@ import (
 
 	"github.com/codegangsta/cli"
 	"github.com/remind101/kinesumer"
+	"github.com/remind101/kinesumer/checkpointers/redis"
+	"github.com/remind101/kinesumer/redispool"
 )
 
 var cmdTail = cli.Command{
@@ -18,7 +20,7 @@ var cmdTail = cli.Command{
 				Name:  "stream, s",
 				Usage: "The Kinesis stream to tail",
 			},
-		}, flagsAws...,
+		}, flagsAWSRedis...,
 	),
 }
 
@@ -32,7 +34,26 @@ func runTail(ctx *cli.Context) {
 	if err != nil {
 		panic(err)
 	}
-	err = k.Begin()
+
+	if redisURL := ctx.String(fRedisURL); len(redisURL) > 0 {
+		pool, err := redispool.NewRedisPool(redisURL)
+		if err != nil {
+			panic(err)
+		}
+
+		cp, err := redischeckpointer.New(&redischeckpointer.Options{
+			ReadOnly:    true,
+			RedisPool:   pool,
+			RedisPrefix: ctx.String(fRedisPrefix),
+		})
+		if err != nil {
+			panic(err)
+		}
+
+		k.Checkpointer = cp
+	}
+
+	_, err = k.Begin()
 	if err != nil {
 		panic(err)
 	}

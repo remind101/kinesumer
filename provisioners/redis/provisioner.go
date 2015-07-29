@@ -19,6 +19,11 @@ type Provisioner struct {
 	lock          string
 }
 
+type Options struct {
+	TTL       time.Duration
+	RedisPool *redis.Pool
+}
+
 func New(ttl time.Duration, redisPool *redis.Pool, prefix, lock string) (*Provisioner, error) {
 	if lock == "" {
 		return nil, errors.New("Lock cannot be empty")
@@ -83,6 +88,12 @@ func (p *Provisioner) Release(shardID string) error {
 	}
 
 	return nil
+}
+
+func (p *Provisioner) Check(shardID string) (string, error) {
+	conn := p.pool.Get()
+	defer conn.Close()
+	return redis.String(conn.Do("GET", p.redisPrefix+":lock:"+shardID))
 }
 
 func (p *Provisioner) Heartbeat(shardID string) error {

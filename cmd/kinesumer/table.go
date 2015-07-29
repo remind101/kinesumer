@@ -3,50 +3,53 @@ package main
 import (
 	"fmt"
 	"strings"
+
+	"github.com/fatih/color"
 )
 
 type Table struct {
-	rows []Row
+	Rows []Row
 }
 
 type Row struct {
-	cells  []Cell
-	header bool
+	Cells  []Cell
+	Header bool
 }
 
 type Cell struct {
-	text string
+	Color *color.Color
+	Text  string
 }
 
 func NewTable() *Table {
 	return &Table{
-		rows: make([]Row, 0),
+		Rows: make([]Row, 0),
 	}
 }
 
 func (t *Table) Done() {
 	cols := 0
-	for _, row := range t.rows {
-		if cols < len(row.cells) {
-			cols = len(row.cells)
+	for _, row := range t.Rows {
+		if cols < len(row.Cells) {
+			cols = len(row.Cells)
 		}
 	}
 
 	widths := make([]int, cols)
-	for _, row := range t.rows {
-		for col, cell := range row.cells {
-			if widths[col] < len(cell.text) {
-				widths[col] = len(cell.text)
+	for _, row := range t.Rows {
+		for col, cell := range row.Cells {
+			if widths[col] < len(cell.Text) {
+				widths[col] = len(cell.Text)
 			}
 		}
 	}
 
-	for _, row := range t.rows {
-		for col, cell := range row.cells {
-			if row.header {
-				fmt.Printf("%s%s ", strings.Repeat("_", widths[col]-len(cell.text)), strings.ToUpper(cell.text))
+	for _, row := range t.Rows {
+		for col, cell := range row.Cells {
+			if row.Header {
+				cell.Color.Printf("%s%s ", strings.ToUpper(cell.Text), strings.Repeat("_", widths[col]-len(cell.Text)))
 			} else {
-				fmt.Printf("%s%s ", cell.text, strings.Repeat(" ", widths[col]-len(cell.text)))
+				cell.Color.Printf("%s%s ", cell.Text, strings.Repeat(" ", widths[col]-len(cell.Text)))
 			}
 		}
 		fmt.Println()
@@ -54,10 +57,10 @@ func (t *Table) Done() {
 }
 
 func (t *Table) AddRow() *Row {
-	t.rows = append(t.rows, Row{
-		cells: make([]Cell, 0),
+	t.Rows = append(t.Rows, Row{
+		Cells: make([]Cell, 0),
 	})
-	return &t.rows[len(t.rows)-1]
+	return &t.Rows[len(t.Rows)-1]
 }
 
 func (t *Table) AddRowWith(labels ...string) *Row {
@@ -68,15 +71,12 @@ func (t *Table) AddRowWith(labels ...string) *Row {
 	return row
 }
 
-func (r *Row) Header() {
-	r.header = true
-}
-
 func (r *Row) AddCell() *Cell {
-	r.cells = append(r.cells, Cell{
-		text: "-",
+	r.Cells = append(r.Cells, Cell{
+		Color: color.New(),
+		Text:  "-",
 	})
-	return &r.cells[len(r.cells)-1]
+	return &r.Cells[len(r.Cells)-1]
 }
 
 func (r *Row) AddCellWithf(format string, a ...interface{}) *Cell {
@@ -86,5 +86,12 @@ func (r *Row) AddCellWithf(format string, a ...interface{}) *Cell {
 }
 
 func (c *Cell) Printf(format string, a ...interface{}) {
-	c.text = fmt.Sprintf(format, a...)
+	c.Text = fmt.Sprintf(format, a...)
+}
+
+func StrShorten(s string, pre, post int) string {
+	if len(s) <= pre+post+3 {
+		return s
+	}
+	return s[0:pre] + "..." + s[len(s)-post:len(s)]
 }

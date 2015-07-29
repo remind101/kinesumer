@@ -147,7 +147,7 @@ func (kin *Kinesumer) GetShards() (shards []*kinesis.Shard, err error) {
 	return
 }
 
-func (kin *Kinesumer) LaunchShardWorker(shards []*kinesis.Shard) (int, error) {
+func (kin *Kinesumer) LaunchShardWorker(shards []*kinesis.Shard) (int, *ShardWorker, error) {
 	perm := kin.rand.Perm(len(shards))
 	for _, j := range perm {
 		err := kin.Provisioner.TryAcquire(aws.StringValue(shards[j].ShardID))
@@ -169,21 +169,21 @@ func (kin *Kinesumer) LaunchShardWorker(shards []*kinesis.Shard) (int, error) {
 				worker.RunWorker()
 			})
 			kin.nRunning++
-			return j, nil
+			return j, worker, nil
 		}
 	}
-	return 0, errors.New("Could not launch worker")
+	return 0, nil, errors.New("Could not launch worker")
 }
 
-func (kin *Kinesumer) Begin() (err error) {
+func (kin *Kinesumer) Begin() ([]*ShardWorker, error) {
 	shards, err := kin.GetShards()
 	if err != nil {
-		return
+		return nil, err
 	}
 
 	err = kin.Checkpointer.Begin(kin.Options.Handlers)
 	if err != nil {
-		return
+		return nil, err
 	}
 
 	n := kin.Options.MaxShardWorkers
@@ -196,12 +196,15 @@ func (kin *Kinesumer) Begin() (err error) {
 
 	kin.stop = make(chan Unit, n)
 	kin.stopped = make(chan Unit, n)
+
+	workers := make([]*ShardWorker, 0)
 	for kin.nRunning < n && len(shards) > 0 && time.Now().Sub(start) < tryTime {
 		for i := kin.nRunning; i < n; i++ {
-			j, err := kin.LaunchShardWorker(shards)
+			j, worker, err := kin.LaunchShardWorker(shards)
 			if err != nil {
 				kin.Options.Handlers.Err(NewError(EWarn, "Could not start shard worker", err))
 			} else {
+				workers = append(workers, worker)
 				shards = append(shards[:j], shards[j+1:]...)
 			}
 		}
@@ -210,7 +213,7 @@ func (kin *Kinesumer) Begin() (err error) {
 
 	kin.Options.Handlers.Err(NewError(EWarn, fmt.Sprintf(EInfo, "%v/%v workers started", kin.nRunning, n), nil))
 
-	return
+	return workers, nil
 }
 
 func (kin *Kinesumer) End() {

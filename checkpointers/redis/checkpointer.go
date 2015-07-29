@@ -21,14 +21,14 @@ type Checkpointer struct {
 	readOnly    bool
 }
 
-type CheckpointerOptions struct {
+type Options struct {
 	ReadOnly    bool
 	SavePeriod  time.Duration
 	RedisPool   *redis.Pool
 	RedisPrefix string
 }
 
-func NewRedisCheckpointer(opt *CheckpointerOptions) (*Checkpointer, error) {
+func New(opt *Options) (*Checkpointer, error) {
 	save := opt.SavePeriod
 	if save == 0 {
 		save = 5 * time.Second
@@ -59,7 +59,7 @@ func (r *Checkpointer) Sync() {
 	if len(r.heads) > 0 && r.modified {
 		conn := r.pool.Get()
 		defer conn.Close()
-		if _, err := conn.Do("HMSET", redis.Args{r.redisPrefix + ":sequence"}.AddFlat(r.heads)...); err != nil {
+		if _, err := conn.Do("HMSET", redis.Args{r.redisPrefix + ".sequence"}.AddFlat(r.heads)...); err != nil {
 			// TODO: report err
 		}
 		r.modified = false
@@ -92,7 +92,7 @@ func (r *Checkpointer) Begin(handlers k.Handlers) error {
 
 	conn := r.pool.Get()
 	defer conn.Close()
-	res, err := conn.Do("HGETALL", r.redisPrefix+":sequence")
+	res, err := conn.Do("HGETALL", r.redisPrefix+".sequence")
 	r.heads, err = redis.StringMap(res, err)
 	if err != nil {
 		return err

@@ -22,6 +22,8 @@ var flagsRedis = []cli.Flag{
 	},
 }
 
+var flagsAWSRedis = append(flagsAws, flagsRedis...)
+
 func getRedisURL(ctx *cli.Context) string {
 	return ctx.String("redis.url")
 }

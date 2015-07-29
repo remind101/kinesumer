@@ -70,7 +70,7 @@ func TestKinesumerBeginEnd(t *testing.T) {
 	k.Stream = "c"
 
 	kin.On("DescribeStreamPages", mock.Anything, mock.Anything).Return(awserr.New("bad", "bad", nil)).Once()
-	err := k.Begin()
+	_, err := k.Begin()
 	assert.Error(t, err)
 
 	resetTestHandlers()
@@ -92,7 +92,8 @@ func TestKinesumerBeginEnd(t *testing.T) {
 		Records:            []*kinesis.Record{},
 	}, awserr.Error(nil))
 	sssm.On("End").Return()
-	assert.Nil(t, k.Begin())
+	_, err = k.Begin()
+	assert.Nil(t, err)
 	assert.Equal(t, 2, k.nRunning)
 	assert.Equal(t, 2, len(toRun))
 	for _, f := range toRun {

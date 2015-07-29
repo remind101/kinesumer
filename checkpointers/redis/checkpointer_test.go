@@ -21,7 +21,7 @@ func (h TestHandlers) Err(e k.Error) {
 
 var (
 	prefix      = "testing"
-	sequenceKey = prefix + ":sequence"
+	sequenceKey = prefix + ".sequence"
 )
 
 func makeCheckpointer() (*Checkpointer, error) {
@@ -29,7 +29,7 @@ func makeCheckpointer() (*Checkpointer, error) {
 	if err != nil {
 		return nil, err
 	}
-	r, err := NewRedisCheckpointer(&CheckpointerOptions{
+	r, err := New(&Options{
 		SavePeriod:  time.Hour,
 		RedisPool:   pool,
 		RedisPrefix: prefix,
