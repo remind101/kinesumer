@@ -20,5 +20,5 @@ func (p Provisioner) Heartbeat(shardID string) error {
 }
 
 func (p Provisioner) TTL() time.Duration {
-	return 0
+	return time.Hour
 }

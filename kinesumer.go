@@ -211,7 +211,7 @@ func (kin *Kinesumer) Begin() ([]*ShardWorker, error) {
 		time.Sleep(500 * time.Millisecond)
 	}
 
-	kin.Options.Handlers.Err(NewError(EWarn, fmt.Sprintf(EInfo, "%v/%v workers started", kin.nRunning, n), nil))
+	kin.Options.Handlers.Err(NewError(EInfo, fmt.Sprintf("%v/%v workers started", kin.nRunning, n), nil))
 
 	return workers, nil
 }
