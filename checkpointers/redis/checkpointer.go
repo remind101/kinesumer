@@ -28,6 +28,14 @@ type Options struct {
 	RedisPrefix string
 }
 
+type Error struct{ origin error }
+
+func (e *Error) Severity() string { return "warn" }
+
+func (e *Error) Origin() error { return e.origin }
+
+func (e *Error) Error() string { return e.origin.Error() }
+
 func New(opt *Options) (*Checkpointer, error) {
 	save := opt.SavePeriod
 	if save == 0 {
@@ -60,7 +68,7 @@ func (r *Checkpointer) Sync() {
 		conn := r.pool.Get()
 		defer conn.Close()
 		if _, err := conn.Do("HMSET", redis.Args{r.redisPrefix + ".sequence"}.AddFlat(r.heads)...); err != nil {
-			// TODO: report err
+			r.handlers.Err(&Error{origin: err})
 		}
 		r.modified = false
 	}
