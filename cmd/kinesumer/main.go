@@ -4,6 +4,7 @@ import (
 	"os"
 
 	"github.com/codegangsta/cli"
+	_ "github.com/joho/godotenv/autoload"
 )
 
 func main() {

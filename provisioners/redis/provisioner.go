@@ -20,27 +20,25 @@ type Provisioner struct {
 }
 
 type Options struct {
-	TTL       time.Duration
-	RedisPool *redis.Pool
+	TTL         time.Duration
+	Lock        string
+	RedisPool   *redis.Pool
+	RedisPrefix string
 }
 
-func New(ttl time.Duration, redisPool *redis.Pool, prefix, lock string) (*Provisioner, error) {
-	if lock == "" {
-		return nil, errors.New("Lock cannot be empty")
+func New(opt *Options) (*Provisioner, error) {
+	if opt.Lock == "" {
+		opt.Lock = uuid.New()
 	}
 
 	return &Provisioner{
 		acquired:    make(map[string]bool),
 		heartbeats:  make(map[string]time.Time),
-		ttl:         ttl,
-		pool:        redisPool,
-		redisPrefix: prefix,
-		lock:        lock,
+		ttl:         opt.TTL,
+		lock:        opt.Lock,
+		pool:        opt.RedisPool,
+		redisPrefix: opt.RedisPrefix,
 	}, nil
-}
-
-func NewWithUUID(ttl time.Duration, redisPool *redis.Pool, prefix string) (*Provisioner, error) {
-	return New(ttl, redisPool, prefix, uuid.New())
 }
 
 func (p *Provisioner) TryAcquire(shardID string) error {

@@ -38,7 +38,6 @@ type KinesumerOptions struct {
 
 var DefaultKinesumerOptions = KinesumerOptions{
 	// These values are the hard limits set by Amazon
-
 	ListStreamsLimit:    1000,
 	DescribeStreamLimit: 10000,
 	GetRecordsLimit:     10000,
@@ -172,7 +171,7 @@ func (kin *Kinesumer) LaunchShardWorker(shards []*kinesis.Shard) (int, *ShardWor
 			return j, worker, nil
 		}
 	}
-	return 0, nil, errors.New("Could not launch worker")
+	return 0, nil, errors.New("No unlocked keys")
 }
 
 func (kin *Kinesumer) Begin() ([]*ShardWorker, error) {
@@ -211,7 +210,7 @@ func (kin *Kinesumer) Begin() ([]*ShardWorker, error) {
 		time.Sleep(500 * time.Millisecond)
 	}
 
-	kin.Options.Handlers.Err(NewError(EWarn, fmt.Sprintf(EInfo, "%v/%v workers started", kin.nRunning, n), nil))
+	kin.Options.Handlers.Err(NewError(EInfo, fmt.Sprintf("%v/%v workers started", kin.nRunning, n), nil))
 
 	return workers, nil
 }
