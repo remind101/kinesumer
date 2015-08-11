@@ -72,7 +72,7 @@ func TestKinesumerBeginEnd(t *testing.T) {
 		ShardIterator: aws.String("0"),
 	}, awserr.Error(nil))
 	kin.On("GetRecords", mock.Anything).Return(&kinesis.GetRecordsOutput{
-		MillisBehindLatest: aws.Long(0),
+		MillisBehindLatest: aws.Int64(0),
 		NextShardIterator:  aws.String("AAAAA"),
 		Records:            []*kinesis.Record{},
 	}, awserr.Error(nil))
