@@ -86,7 +86,7 @@ func (m *KinesisAPIMock) DescribeStreamPages(_a0 *kinesis.DescribeStreamInput, _
 	cont := _a1(
 		&kinesis.DescribeStreamOutput{
 			StreamDescription: &kinesis.StreamDescription{
-				HasMoreShards: aws.Boolean(true),
+				HasMoreShards: aws.Bool(true),
 				Shards:        []*kinesis.Shard{&a},
 				StreamName:    aws.String("TestStream"),
 				StreamStatus:  aws.String("ACTIVE"),
@@ -96,7 +96,7 @@ func (m *KinesisAPIMock) DescribeStreamPages(_a0 *kinesis.DescribeStreamInput, _
 		_a1(
 			&kinesis.DescribeStreamOutput{
 				StreamDescription: &kinesis.StreamDescription{
-					HasMoreShards: aws.Boolean(true),
+					HasMoreShards: aws.Bool(true),
 					Shards:        []*kinesis.Shard{&b},
 					StreamName:    aws.String("TestStream"),
 					StreamStatus:  aws.String("ACTIVE"),
@@ -144,12 +144,12 @@ func (m *KinesisAPIMock) ListStreamsPages(_a0 *kinesis.ListStreamsInput, _a1 fun
 	ret := m.Called(_a0, _a1)
 
 	cont := _a1(&kinesis.ListStreamsOutput{
-		HasMoreStreams: aws.Boolean(true),
+		HasMoreStreams: aws.Bool(true),
 		StreamNames:    []*string{aws.String("a"), aws.String("b")},
 	}, true)
 	if cont {
 		_a1(&kinesis.ListStreamsOutput{
-			HasMoreStreams: aws.Boolean(false),
+			HasMoreStreams: aws.Bool(false),
 			StreamNames:    []*string{aws.String("c")},
 		}, false)
 	}
