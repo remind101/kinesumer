@@ -49,7 +49,7 @@ func NewDefaultKinesumer(awsAccessKey, awsSecretKey, awsRegion, stream string) (
 		kinesis.New(
 			&aws.Config{
 				Credentials: credentials.NewStaticCredentials(awsAccessKey, awsSecretKey, ""),
-				Region:      awsRegion,
+				Region:      aws.String(awsRegion),
 			},
 		),
 		&EmptyStateSync{},
@@ -70,7 +70,7 @@ func NewDefaultRedisKinesumer(awsAccessKey, awsSecretKey, awsRegion, redisURL, s
 		kinesis.New(
 			&aws.Config{
 				Credentials: credentials.NewStaticCredentials(awsAccessKey, awsSecretKey, ""),
-				Region:      awsRegion,
+				Region:      aws.String(awsRegion),
 			},
 		),
 		rss,

@@ -69,7 +69,7 @@ func TestShardWorkerGetRecords(t *testing.T) {
 	s, kin, _, _, _, _ := makeTestShardWorker()
 
 	kin.On("GetRecords", mock.Anything).Return(&kinesis.GetRecordsOutput{
-		MillisBehindLatest: aws.Long(0),
+		MillisBehindLatest: aws.Int64(0),
 		NextShardIterator:  aws.String("AAAA"),
 		Records:            []*kinesis.Record{},
 	}, awserr.Error(nil))
@@ -90,7 +90,7 @@ func TestShardWorkerGetRecordsAndProcess(t *testing.T) {
 		SequenceNumber: aws.String("123"),
 	}
 	kin.On("GetRecords", mock.Anything).Return(&kinesis.GetRecordsOutput{
-		MillisBehindLatest: aws.Long(0),
+		MillisBehindLatest: aws.Int64(0),
 		NextShardIterator:  aws.String("AAAA"),
 		Records:            []*kinesis.Record{&record1},
 	}, awserr.Error(nil)).Once()
@@ -106,7 +106,7 @@ func TestShardWorkerGetRecordsAndProcess(t *testing.T) {
 	err := awserr.New("bad", "bad", nil)
 	stp <- Unit{}
 	kin.On("GetRecords", mock.Anything).Return(&kinesis.GetRecordsOutput{
-		MillisBehindLatest: aws.Long(0),
+		MillisBehindLatest: aws.Int64(0),
 		NextShardIterator:  aws.String("AAAA"),
 		Records:            []*kinesis.Record{},
 	}, err)
@@ -130,12 +130,12 @@ func TestShardWorkerRun(t *testing.T) {
 		SequenceNumber: aws.String("123"),
 	}
 	kin.On("GetRecords", mock.Anything).Return(&kinesis.GetRecordsOutput{
-		MillisBehindLatest: aws.Long(0),
+		MillisBehindLatest: aws.Int64(0),
 		NextShardIterator:  aws.String("AAAA"),
 		Records:            []*kinesis.Record{&record1},
 	}, awserr.Error(nil)).Once()
 	kin.On("GetRecords", mock.Anything).Return(&kinesis.GetRecordsOutput{
-		MillisBehindLatest: aws.Long(0),
+		MillisBehindLatest: aws.Int64(0),
 		NextShardIterator:  aws.String("AAAA"),
 		Records:            []*kinesis.Record{},
 	}, awserr.Error(nil))
