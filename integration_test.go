@@ -3,6 +3,8 @@
 package kinesumer
 
 import (
+	"fmt"
+	"math/rand"
 	"os"
 	"testing"
 	"time"
@@ -51,8 +53,8 @@ func (n NSync) Sync() {
 	<-n.Out
 }
 
-func TestEverything(t *testing.T) {
-	resetTestHandlers()
+func TestIntegration(t *testing.T) {
+	rand.Seed(94133)
 
 	t.Logf("Creating Kinesis")
 	kin := kinesis.New(&aws.Config{
@@ -109,10 +111,9 @@ func TestEverything(t *testing.T) {
 		panic(err)
 	}
 
-	if !exists {
-		t.Logf("Stream does not exist. Creating.")
-		_, err := kin.CreateStream(&kinesis.CreateStreamInput{
-			ShardCount: aws.Int64(3),
+	if exists {
+		t.Logf("Deleting stream")
+		_, err := kin.DeleteStream(&kinesis.DeleteStreamInput{
 			StreamName: aws.String(stream),
 		})
 		if err != nil {
@@ -120,31 +121,46 @@ func TestEverything(t *testing.T) {
 		}
 
 		for i := 0; i < 60; i++ {
-			time.Sleep(100 * time.Millisecond)
+			time.Sleep(time.Second)
 			if exists, err := k.StreamExists(); err != nil {
 				panic(err)
-			} else if exists {
-				goto cont
+			} else if !exists {
+				goto cont1
 			}
 		}
+		panic("Could not delete stream")
+	}
+cont1:
 
-		panic("Could not create stream")
-	} else {
-		t.Logf("Stream already exists")
+	t.Logf("Creating stream")
+	_, err = kin.CreateStream(&kinesis.CreateStreamInput{
+		ShardCount: aws.Int64(3),
+		StreamName: aws.String(stream),
+	})
+	if err != nil {
+		panic(err)
 	}
 
-cont:
+	for i := 0; i < 60; i++ {
+		time.Sleep(time.Second)
+		if exists, err := k.StreamExists(); err != nil {
+			panic(err)
+		} else if exists {
+			goto cont2
+		}
+	}
+	panic("Could not create stream")
+cont2:
+
 	workers, err := k.Begin()
 	if err != nil {
 		panic(err)
 	}
 
-	for _, proc := range toRun {
-		go proc()
-	}
-
 	if len(workers) != 2 {
-		panic("Expected 2 workers to be started by k")
+		panic(fmt.Sprintf("Expected 2 workers to be started by k. Workers: %v",
+			workers,
+		))
 	}
 
 	cp2, err := redischeckpointer.New(&cpOpt)
@@ -172,6 +188,19 @@ cont:
 	if len(workers2) != 1 {
 		panic("Expected 1 worker to be started by k2")
 	}
+
+	records := make([]*PutRecordsRequestEntry, 100)
+	for i := 0; i < 100; i++ {
+		records[i] = &kinesis.PutRecordsRequestEntry{
+			Data:         []byte(""),
+			PartitionKey: aws.String("aeou"),
+		}
+	}
+
+	kin.PutRecords(&kinesis.PutRecordsInput{
+		Records:    records,
+		StreamName: aws.String(stream),
+	})
 
 	t.FailNow()
 }

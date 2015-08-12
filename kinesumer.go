@@ -127,23 +127,34 @@ func (kin *Kinesumer) StreamExists() (found bool, err error) {
 }
 
 func (kin *Kinesumer) GetShards() (shards []*kinesis.Shard, err error) {
-	shards = make([]*kinesis.Shard, 0)
-	err = kin.Kinesis.DescribeStreamPages(&kinesis.DescribeStreamInput{
-		Limit:      &kin.Options.DescribeStreamLimit,
-		StreamName: &kin.Stream,
-	}, func(desc *kinesis.DescribeStreamOutput, _ bool) bool {
-		if desc == nil || desc.StreamDescription == nil {
-			err = errors.New("Stream could not be described")
-			return false
+	for {
+		retry := false
+		shards = make([]*kinesis.Shard, 0)
+		err = kin.Kinesis.DescribeStreamPages(&kinesis.DescribeStreamInput{
+			Limit:      &kin.Options.DescribeStreamLimit,
+			StreamName: &kin.Stream,
+		}, func(desc *kinesis.DescribeStreamOutput, _ bool) bool {
+			if desc == nil || desc.StreamDescription == nil {
+				err = errors.New("Stream could not be described")
+				return false
+			}
+			switch aws.StringValue(desc.StreamDescription.StreamStatus) {
+			case "CREATING":
+				retry = true
+				return false
+			case "DELETING":
+				err = errors.New("Stream is being deleted")
+				return false
+			}
+			shards = append(shards, desc.StreamDescription.Shards...)
+			return true
+		})
+		if retry {
+			time.Sleep(time.Second)
+		} else {
+			return
 		}
-		if aws.StringValue(desc.StreamDescription.StreamStatus) == "DELETING" {
-			err = errors.New("Stream is being deleted")
-			return false
-		}
-		shards = append(shards, desc.StreamDescription.Shards...)
-		return true
-	})
-	return
+	}
 }
 
 func (kin *Kinesumer) LaunchShardWorker(shards []*kinesis.Shard) (int, *ShardWorker, error) {
