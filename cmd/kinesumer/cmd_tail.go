@@ -4,8 +4,10 @@ import (
 	"fmt"
 
 	"github.com/codegangsta/cli"
+	"github.com/fatih/color"
 	"github.com/remind101/kinesumer"
 	"github.com/remind101/kinesumer/checkpointers/redis"
+	"github.com/remind101/kinesumer/interface"
 	"github.com/remind101/kinesumer/redispool"
 )
 
@@ -24,6 +26,24 @@ var cmdTail = cli.Command{
 	),
 }
 
+type tailHandlers struct{}
+
+func (h tailHandlers) Go(f func()) {
+	go f()
+}
+
+func (h tailHandlers) Err(err kinesumeriface.Error) {
+	switch err.Severity() {
+	case kinesumer.ECrit:
+		fallthrough
+	case kinesumer.EError:
+		color.Red("%s:%s\n", err.Severity(), err.Error())
+		panic(err)
+	default:
+		color.Yellow("%s:%s\n", err.Severity(), err.Error())
+	}
+}
+
 func runTail(ctx *cli.Context) {
 	k, err := kinesumer.NewDefaultKinesumer(
 		ctx.String(fAWSAccess),
@@ -34,6 +54,8 @@ func runTail(ctx *cli.Context) {
 	if err != nil {
 		panic(err)
 	}
+
+	k.Options.Handlers = tailHandlers{}
 
 	if redisURL := ctx.String(fRedisURL); len(redisURL) > 0 {
 		pool, err := redispool.NewRedisPool(redisURL)

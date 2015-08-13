@@ -49,10 +49,6 @@ func (p *Provisioner) TryAcquire(shardID string) error {
 	conn := p.pool.Get()
 	defer conn.Close()
 
-	if p.acquired[shardID] {
-		return errors.New("Lock already acquired by this process")
-	}
-
 	res, err := conn.Do("SET", p.redisPrefix+":lock:"+shardID, p.lock, "PX", int64(p.ttl/time.Millisecond), "NX")
 	if err != nil {
 		return err
@@ -131,8 +127,11 @@ func (p *Provisioner) Heartbeat(shardID string) error {
 	}
 
 	lock, err := redis.String(res, err)
+	if lock == "" {
+		return p.TryAcquire(shardID)
+	}
 	if lock != p.lock {
-		return errors.New("Lock changed")
+		return errors.New("Lock changed from " + p.lock + " to " + lock)
 	}
 
 	res, err = conn.Do("PEXPIRE", lockKey, int64(p.ttl/time.Millisecond))

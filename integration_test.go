@@ -73,7 +73,7 @@ func TestIntegration(t *testing.T) {
 	redisPrefix := os.Getenv("REDIS_PREFIX")
 
 	cpOpt := redischeckpointer.Options{
-		SavePeriod:  3 * time.Second,
+		SavePeriod:  8 * time.Second,
 		RedisPool:   redisPool,
 		RedisPrefix: redisPrefix,
 	}
@@ -83,7 +83,7 @@ func TestIntegration(t *testing.T) {
 	}
 
 	provOpt := redisprovisioner.Options{
-		TTL:         3 * time.Second,
+		TTL:         8 * time.Second,
 		RedisPool:   redisPool,
 		RedisPrefix: redisPrefix,
 	}
@@ -96,10 +96,11 @@ func TestIntegration(t *testing.T) {
 	kinOpt := KinesumerOptions{
 		ListStreamsLimit:    25,
 		DescribeStreamLimit: 25,
-		GetRecordsLimit:     10,
+		GetRecordsLimit:     25,
 		PollTime:            1,
 		MaxShardWorkers:     2,
 		Handlers:            DefaultHandlers{},
+		DefaultIteratorType: "TRIM_HORIZON",
 	}
 
 	fmt.Println("Creating Kinesumer")
@@ -154,12 +155,13 @@ cont1:
 	panic("Could not create stream")
 cont2:
 
+	time.Sleep(time.Second)
 	workers, err := k.Begin()
 	if err != nil {
 		panic(err)
 	}
 
-	time.Sleep(5 * time.Second)
+	time.Sleep(8 * time.Second)
 
 	if len(workers) != 2 {
 		panic(fmt.Sprintf("Expected 2 workers to be started by k. Workers: %v",
@@ -231,12 +233,12 @@ cont2:
 				delete(values, string(rec.Data()))
 			}
 		case <-timeout.C:
-			panic("Timed out fetching records")
+			panic(fmt.Sprintf("Timed out fetching records. Missing: %v", values))
 		}
 	}
 
 	if len(values) > 0 {
-		panic("Did not receive all expected records")
+		panic(fmt.Sprintf("Did not receive all expected records. Missing: %v", values))
 	}
 
 	fmt.Println("Basic functionality works")
@@ -303,8 +305,8 @@ cont2:
 		{2, 1},
 	}
 	for _, pair := range pairs {
-		if consec(*shards[pair.begin].SequenceNumberRange.StartingSequenceNumber,
-			*shards[pair.end].SequenceNumberRange.EndingSequenceNumber) {
+		if consec(*shards[pair.begin].HashKeyRange.StartingHashKey,
+			*shards[pair.end].HashKeyRange.EndingHashKey) {
 			_, err := kin.MergeShards(&kinesis.MergeShardsInput{
 				ShardToMerge:         shards[pair.begin].ShardID,
 				AdjacentShardToMerge: shards[pair.end].ShardID,

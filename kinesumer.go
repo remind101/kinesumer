@@ -34,6 +34,7 @@ type KinesumerOptions struct {
 	PollTime            int
 	MaxShardWorkers     int
 	Handlers            k.Handlers
+	DefaultIteratorType string
 }
 
 var DefaultKinesumerOptions = KinesumerOptions{
@@ -42,9 +43,10 @@ var DefaultKinesumerOptions = KinesumerOptions{
 	DescribeStreamLimit: 10000,
 	GetRecordsLimit:     10000,
 
-	PollTime:        2000,
-	MaxShardWorkers: 50,
-	Handlers:        DefaultHandlers{},
+	PollTime:            2000,
+	MaxShardWorkers:     50,
+	Handlers:            DefaultHandlers{},
+	DefaultIteratorType: "LATEST",
 }
 
 func NewDefaultKinesumer(awsAccessKey, awsSecretKey, awsRegion, stream string) (*Kinesumer, error) {
@@ -163,17 +165,18 @@ func (kin *Kinesumer) LaunchShardWorker(shards []*kinesis.Shard) (int, *ShardWor
 		err := kin.Provisioner.TryAcquire(aws.StringValue(shards[j].ShardID))
 		if err == nil {
 			worker := &ShardWorker{
-				kinesis:         kin.Kinesis,
-				shard:           shards[j],
-				checkpointer:    kin.Checkpointer,
-				stream:          kin.Stream,
-				pollTime:        kin.Options.PollTime,
-				stop:            kin.stop,
-				stopped:         kin.stopped,
-				c:               kin.records,
-				provisioner:     kin.Provisioner,
-				handlers:        kin.Options.Handlers,
-				GetRecordsLimit: kin.Options.GetRecordsLimit,
+				kinesis:             kin.Kinesis,
+				shard:               shards[j],
+				checkpointer:        kin.Checkpointer,
+				stream:              kin.Stream,
+				pollTime:            kin.Options.PollTime,
+				stop:                kin.stop,
+				stopped:             kin.stopped,
+				c:                   kin.records,
+				provisioner:         kin.Provisioner,
+				handlers:            kin.Options.Handlers,
+				defaultIteratorType: kin.Options.DefaultIteratorType,
+				GetRecordsLimit:     kin.Options.GetRecordsLimit,
 			}
 			kin.Options.Handlers.Go(func() {
 				worker.RunWorker()

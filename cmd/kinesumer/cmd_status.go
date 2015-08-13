@@ -47,7 +47,11 @@ func runStatus(ctx *cli.Context) {
 		}
 		prefix := ctx.String(fRedisPrefix)
 
-		prov, err = redisprovisioner.NewWithUUID(time.Second, pool, prefix)
+		prov, err = redisprovisioner.New(&redisprovisioner.Options{
+			TTL:         time.Second,
+			RedisPool:   pool,
+			RedisPrefix: prefix,
+		})
 		if err != nil {
 			panic(err)
 		}
