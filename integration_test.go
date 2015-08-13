@@ -19,7 +19,7 @@ import (
 	"github.com/remind101/kinesumer/redispool"
 )
 
-func consecAll(n string, char rune) bool {
+func isConsecutiveAllSame(n string, char rune) bool {
 	for _, c := range n {
 		if c != char {
 			return false
@@ -28,42 +28,45 @@ func consecAll(n string, char rune) bool {
 	return true
 }
 
-func consecHelper(n, sn string) bool {
+func isConsecutiveHelper(n, sn string) bool {
 	if len(n) == 0 || len(sn) == 0 {
 		return false
 	} else if n[0] == sn[0] {
-		return consecHelper(n[1:], sn[1:])
+		return isConsecutiveHelper(n[1:], sn[1:])
 	} else if n[0]+1 == sn[0] {
-		return consecAll(n[1:], '9') && consecAll(sn[1:], '0')
+		return isConsecutiveAllSame(n[1:], '9') && isConsecutiveAllSame(sn[1:], '0')
 	} else {
 		return false
 	}
 }
 
-func consec(n, sn string) bool {
+// We need this to determine if two hash ranges are adjacent because we try to merge two shards
+// and only adjacent shards can be merged. Shard hash ranges are 128 bit and come from AWS as
+// strings.
+func isConsecutive(n, sn string) bool {
 	if len(n)*len(sn) == 0 {
 		return false
 	} else if len(n)+1 == len(sn) && sn[0] == '1' {
-		return consecAll(n, '9') && consecAll(sn[1:], '0')
+		return isConsecutiveAllSame(n, '9') && isConsecutiveAllSame(sn[1:], '0')
 	} else {
-		return consecHelper(n, sn)
+		return isConsecutiveHelper(n, sn)
 	}
 }
 
 func TestConsec(t *testing.T) {
-	if consec("123", "1234") {
+	if isConsecutive("123", "1234") {
 		t.Fail()
 	}
 
-	if !consec("123", "124") {
+	if !isConsecutive("123", "124") {
 		t.Fail()
 	}
 
-	if !consec("1233999", "1234000") {
+	if !isConsecutive("1233999", "1234000") {
 		t.Fail()
 	}
 
-	if !consec("9", "10") {
+	if !isConsecutive("9", "10") {
 		t.Fail()
 	}
 }
@@ -310,7 +313,7 @@ cont2:
 		{2, 1},
 	}
 	for _, pair := range pairs {
-		if consec(*shards[pair.begin].HashKeyRange.EndingHashKey,
+		if isConsecutive(*shards[pair.begin].HashKeyRange.EndingHashKey,
 			*shards[pair.end].HashKeyRange.StartingHashKey) {
 			_, err := kin.MergeShards(&kinesis.MergeShardsInput{
 				ShardToMerge:         shards[pair.begin].ShardID,
