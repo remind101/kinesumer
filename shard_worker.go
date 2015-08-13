@@ -9,18 +9,19 @@ import (
 )
 
 type ShardWorker struct {
-	kinesis         k.Kinesis
-	shard           *kinesis.Shard
-	checkpointer    k.Checkpointer
-	stream          string
-	pollTime        int
-	sequence        string
-	stop            <-chan Unit
-	stopped         chan<- Unit
-	c               chan k.Record
-	provisioner     k.Provisioner
-	handlers        k.Handlers
-	GetRecordsLimit int64
+	kinesis             k.Kinesis
+	shard               *kinesis.Shard
+	checkpointer        k.Checkpointer
+	stream              string
+	pollTime            int
+	sequence            string
+	stop                <-chan Unit
+	stopped             chan<- Unit
+	c                   chan k.Record
+	provisioner         k.Provisioner
+	handlers            k.Handlers
+	defaultIteratorType string
+	GetRecordsLimit     int64
 }
 
 func (s *ShardWorker) GetShardIterator(iteratorType string, sequence string) (string, error) {
@@ -114,21 +115,21 @@ func (s *ShardWorker) RunWorker() {
 	if len(sequence) == 0 {
 		sequence = aws.StringValue(s.shard.SequenceNumberRange.StartingSequenceNumber)
 
-		s.handlers.Err(NewError(EWarn, "Using TRIM_HORIZON", nil))
-		it = s.TryGetShardIterator("TRIM_HORIZON", "")
+		s.handlers.Err(NewError(EWarn, "Using "+s.defaultIteratorType, nil))
+		it = s.TryGetShardIterator(s.defaultIteratorType, "")
 	} else {
 		it = s.TryGetShardIterator("AFTER_SEQUENCE_NUMBER", sequence)
 	}
 
 loop:
 	for {
-		if err := s.provisioner.Heartbeat(aws.StringValue(s.shard.ShardID)); err != nil {
-			s.handlers.Err(NewError(EError, "Heartbeat failed", err))
+		if len(it) == 0 || end != nil && sequence == *end {
+			s.handlers.Err(NewError(EWarn, "Shard has reached its end", nil))
 			break loop
 		}
 
-		if end != nil && sequence == *end {
-			s.handlers.Err(NewError(EWarn, "Shard has reached its end", nil))
+		if err := s.provisioner.Heartbeat(aws.StringValue(s.shard.ShardID)); err != nil {
+			s.handlers.Err(NewError(EError, "Heartbeat failed", err))
 			break loop
 		}
 

@@ -22,15 +22,12 @@ var cmdStatus = cli.Command{
 				Name:  "stream, s",
 				Usage: "The Kinesis stream to tail",
 			},
-		}, flagsAWSRedis...,
+		}, flagsRedis...,
 	),
 }
 
 func runStatus(ctx *cli.Context) {
 	k, err := kinesumer.NewDefaultKinesumer(
-		ctx.String(fAWSAccess),
-		ctx.String(fAWSSecret),
-		ctx.String(fAWSRegion),
 		ctx.String("stream"),
 	)
 	if err != nil {
@@ -47,7 +44,11 @@ func runStatus(ctx *cli.Context) {
 		}
 		prefix := ctx.String(fRedisPrefix)
 
-		prov, err = redisprovisioner.NewWithUUID(time.Second, pool, prefix)
+		prov, err = redisprovisioner.New(&redisprovisioner.Options{
+			TTL:         time.Second,
+			RedisPool:   pool,
+			RedisPrefix: prefix,
+		})
 		if err != nil {
 			panic(err)
 		}

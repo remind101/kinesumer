@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/service/kinesis"
 	"github.com/remind101/kinesumer/checkpointers/empty"
 	k "github.com/remind101/kinesumer/interface"
@@ -34,28 +33,24 @@ type KinesumerOptions struct {
 	PollTime            int
 	MaxShardWorkers     int
 	Handlers            k.Handlers
+	DefaultIteratorType string
 }
 
 var DefaultKinesumerOptions = KinesumerOptions{
 	// These values are the hard limits set by Amazon
-
 	ListStreamsLimit:    1000,
 	DescribeStreamLimit: 10000,
 	GetRecordsLimit:     10000,
 
-	PollTime:        2000,
-	MaxShardWorkers: 50,
-	Handlers:        DefaultHandlers{},
+	PollTime:            2000,
+	MaxShardWorkers:     50,
+	Handlers:            DefaultHandlers{},
+	DefaultIteratorType: "LATEST",
 }
 
-func NewDefaultKinesumer(awsAccessKey, awsSecretKey, awsRegion, stream string) (*Kinesumer, error) {
+func NewDefaultKinesumer(stream string) (*Kinesumer, error) {
 	return NewKinesumer(
-		kinesis.New(
-			&aws.Config{
-				Credentials: credentials.NewStaticCredentials(awsAccessKey, awsSecretKey, ""),
-				Region:      &awsRegion,
-			},
-		),
+		kinesis.New(&aws.Config{}),
 		nil,
 		nil,
 		nil,
@@ -128,23 +123,34 @@ func (kin *Kinesumer) StreamExists() (found bool, err error) {
 }
 
 func (kin *Kinesumer) GetShards() (shards []*kinesis.Shard, err error) {
-	shards = make([]*kinesis.Shard, 0)
-	err = kin.Kinesis.DescribeStreamPages(&kinesis.DescribeStreamInput{
-		Limit:      &kin.Options.DescribeStreamLimit,
-		StreamName: &kin.Stream,
-	}, func(desc *kinesis.DescribeStreamOutput, _ bool) bool {
-		if desc == nil || desc.StreamDescription == nil {
-			err = errors.New("Stream could not be described")
-			return false
+	for {
+		retry := false
+		shards = make([]*kinesis.Shard, 0)
+		err = kin.Kinesis.DescribeStreamPages(&kinesis.DescribeStreamInput{
+			Limit:      &kin.Options.DescribeStreamLimit,
+			StreamName: &kin.Stream,
+		}, func(desc *kinesis.DescribeStreamOutput, _ bool) bool {
+			if desc == nil || desc.StreamDescription == nil {
+				err = errors.New("Stream could not be described")
+				return false
+			}
+			switch aws.StringValue(desc.StreamDescription.StreamStatus) {
+			case "CREATING":
+				retry = true
+				return false
+			case "DELETING":
+				err = errors.New("Stream is being deleted")
+				return false
+			}
+			shards = append(shards, desc.StreamDescription.Shards...)
+			return true
+		})
+		if retry {
+			time.Sleep(time.Second)
+		} else {
+			return
 		}
-		if aws.StringValue(desc.StreamDescription.StreamStatus) == "DELETING" {
-			err = errors.New("Stream is being deleted")
-			return false
-		}
-		shards = append(shards, desc.StreamDescription.Shards...)
-		return true
-	})
-	return
+	}
 }
 
 func (kin *Kinesumer) LaunchShardWorker(shards []*kinesis.Shard) (int, *ShardWorker, error) {
@@ -153,17 +159,18 @@ func (kin *Kinesumer) LaunchShardWorker(shards []*kinesis.Shard) (int, *ShardWor
 		err := kin.Provisioner.TryAcquire(aws.StringValue(shards[j].ShardID))
 		if err == nil {
 			worker := &ShardWorker{
-				kinesis:         kin.Kinesis,
-				shard:           shards[j],
-				checkpointer:    kin.Checkpointer,
-				stream:          kin.Stream,
-				pollTime:        kin.Options.PollTime,
-				stop:            kin.stop,
-				stopped:         kin.stopped,
-				c:               kin.records,
-				provisioner:     kin.Provisioner,
-				handlers:        kin.Options.Handlers,
-				GetRecordsLimit: kin.Options.GetRecordsLimit,
+				kinesis:             kin.Kinesis,
+				shard:               shards[j],
+				checkpointer:        kin.Checkpointer,
+				stream:              kin.Stream,
+				pollTime:            kin.Options.PollTime,
+				stop:                kin.stop,
+				stopped:             kin.stopped,
+				c:                   kin.records,
+				provisioner:         kin.Provisioner,
+				handlers:            kin.Options.Handlers,
+				defaultIteratorType: kin.Options.DefaultIteratorType,
+				GetRecordsLimit:     kin.Options.GetRecordsLimit,
 			}
 			kin.Options.Handlers.Go(func() {
 				worker.RunWorker()
@@ -172,7 +179,7 @@ func (kin *Kinesumer) LaunchShardWorker(shards []*kinesis.Shard) (int, *ShardWor
 			return j, worker, nil
 		}
 	}
-	return 0, nil, errors.New("Could not launch worker")
+	return 0, nil, errors.New("No unlocked keys")
 }
 
 func (kin *Kinesumer) Begin() ([]*ShardWorker, error) {

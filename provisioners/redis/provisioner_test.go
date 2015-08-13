@@ -19,7 +19,12 @@ func makeProvisioner() *Provisioner {
 
 	conn.Do("DEL", "testing:lock:shard0")
 
-	prov, err := New(time.Second, pool, "testing", "lock")
+	prov, err := New(&Options{
+		TTL:         time.Second,
+		RedisPool:   pool,
+		RedisPrefix: "testing",
+		Lock:        "lock",
+	})
 	if err != nil {
 		panic(err)
 	}
