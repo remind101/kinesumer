@@ -59,8 +59,17 @@
 			"Rev": "1a6effc8b0a7bb1b21c683ea5645c4e0fb52f302"
 		},
 		{
+			"ImportPath": "github.com/joho/godotenv",
+			"Comment": "v1-8-g443e926",
+			"Rev": "443e926da0d793d3b3f32118b1e4ba52ada26503"
+		},
+		{
 			"ImportPath": "github.com/mattn/go-isatty",
 			"Rev": "ae0b1f8f8004be68d791a576e3d8e7648ab41449"
+		},
+		{
+			"ImportPath": "github.com/pborman/uuid",
+			"Rev": "ca53cad383cad2479bbba7f7a1a05797ec1386e4"
 		},
 		{
 			"ImportPath": "github.com/shiena/ansicolor",

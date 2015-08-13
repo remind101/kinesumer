@@ -45,7 +45,7 @@ func (h tailHandlers) Err(err kinesumeriface.Error) {
 }
 
 func runTail(ctx *cli.Context) {
-	k, err := kinesumer.NewDefaultKinesumer(
+	k, err := kinesumer.NewDefault(
 		ctx.String("stream"),
 	)
 	if err != nil {

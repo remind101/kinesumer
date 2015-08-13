@@ -18,7 +18,7 @@ type Kinesumer struct {
 	Checkpointer k.Checkpointer
 	Provisioner  k.Provisioner
 	Stream       string
-	Options      *KinesumerOptions
+	Options      *Options
 	records      chan k.Record
 	stop         chan Unit
 	stopped      chan Unit
@@ -26,7 +26,7 @@ type Kinesumer struct {
 	rand         *rand.Rand
 }
 
-type KinesumerOptions struct {
+type Options struct {
 	ListStreamsLimit    int64
 	DescribeStreamLimit int64
 	GetRecordsLimit     int64
@@ -36,7 +36,7 @@ type KinesumerOptions struct {
 	DefaultIteratorType string
 }
 
-var DefaultKinesumerOptions = KinesumerOptions{
+var DefaultOptions = Options{
 	// These values are the hard limits set by Amazon
 	ListStreamsLimit:    1000,
 	DescribeStreamLimit: 10000,
@@ -48,8 +48,8 @@ var DefaultKinesumerOptions = KinesumerOptions{
 	DefaultIteratorType: "LATEST",
 }
 
-func NewDefaultKinesumer(stream string) (*Kinesumer, error) {
-	return NewKinesumer(
+func NewDefault(stream string) (*Kinesumer, error) {
+	return New(
 		kinesis.New(&aws.Config{}),
 		nil,
 		nil,
@@ -59,8 +59,8 @@ func NewDefaultKinesumer(stream string) (*Kinesumer, error) {
 	)
 }
 
-func NewKinesumer(kinesis k.Kinesis, checkpointer k.Checkpointer, provisioner k.Provisioner,
-	randSource rand.Source, stream string, opt *KinesumerOptions) (*Kinesumer, error) {
+func New(kinesis k.Kinesis, checkpointer k.Checkpointer, provisioner k.Provisioner,
+	randSource rand.Source, stream string, opt *Options) (*Kinesumer, error) {
 
 	if kinesis == nil {
 		return nil, NewError(ECrit, "Kinesis object must not be nil", nil)
@@ -83,7 +83,7 @@ func NewKinesumer(kinesis k.Kinesis, checkpointer k.Checkpointer, provisioner k.
 	}
 
 	if opt == nil {
-		tmp := DefaultKinesumerOptions
+		tmp := DefaultOptions
 		opt = &tmp
 	}
 

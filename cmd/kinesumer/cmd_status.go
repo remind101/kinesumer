@@ -27,7 +27,7 @@ var cmdStatus = cli.Command{
 }
 
 func runStatus(ctx *cli.Context) {
-	k, err := kinesumer.NewDefaultKinesumer(
+	k, err := kinesumer.NewDefault(
 		ctx.String("stream"),
 	)
 	if err != nil {
