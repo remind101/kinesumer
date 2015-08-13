@@ -123,13 +123,13 @@ func (s *ShardWorker) RunWorker() {
 
 loop:
 	for {
-		if err := s.provisioner.Heartbeat(aws.StringValue(s.shard.ShardID)); err != nil {
-			s.handlers.Err(NewError(EError, "Heartbeat failed", err))
+		if len(it) == 0 || end != nil && sequence == *end {
+			s.handlers.Err(NewError(EWarn, "Shard has reached its end", nil))
 			break loop
 		}
 
-		if end != nil && sequence == *end {
-			s.handlers.Err(NewError(EWarn, "Shard has reached its end", nil))
+		if err := s.provisioner.Heartbeat(aws.StringValue(s.shard.ShardID)); err != nil {
+			s.handlers.Err(NewError(EError, "Heartbeat failed", err))
 			break loop
 		}
 

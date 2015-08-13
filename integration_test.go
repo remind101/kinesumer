@@ -243,22 +243,18 @@ cont2:
 
 	fmt.Println("Basic functionality works")
 
-	producerStopC := make(chan struct{}, 1)
-	consumerStopC := make(chan struct{}, 1)
-	stopped := make(chan struct{}, 1)
-	nProduced := 0
-	nConsumed := 0
+	stopC := make(chan struct{}, 2)
+
+	smallRecords := records[:10]
 
 	go func() {
 		for {
 			select {
-			case <-producerStopC:
-				consumerStopC <- struct{}{}
-				return
+			case <-stopC:
 			default:
 				time.Sleep(time.Second)
 				res, err := kin.PutRecords(&kinesis.PutRecordsInput{
-					Records:    records,
+					Records:    smallRecords,
 					StreamName: aws.String(stream),
 				})
 				if err != nil {
@@ -267,24 +263,19 @@ cont2:
 				if aws.Int64Value(res.FailedRecordCount) != 0 {
 					panic(fmt.Sprintf("Failed to put records: %v", res.Records))
 				}
-				nProduced += len(records)
 			}
 		}
 	}()
 
 	go func() {
-		run := true
-		for run || nConsumed < nProduced {
+		for {
 			select {
 			case <-k.Records():
-				nConsumed++
 			case <-k2.Records():
-				nConsumed++
-			case <-consumerStopC:
-				run = false
+			case <-stopC:
+				return
 			}
 		}
-		stopped <- struct{}{}
 	}()
 
 	shards, err := k.GetShards()
@@ -305,8 +296,8 @@ cont2:
 		{2, 1},
 	}
 	for _, pair := range pairs {
-		if consec(*shards[pair.begin].HashKeyRange.StartingHashKey,
-			*shards[pair.end].HashKeyRange.EndingHashKey) {
+		if consec(*shards[pair.begin].HashKeyRange.EndingHashKey,
+			*shards[pair.end].HashKeyRange.StartingHashKey) {
 			_, err := kin.MergeShards(&kinesis.MergeShardsInput{
 				ShardToMerge:         shards[pair.begin].ShardID,
 				AdjacentShardToMerge: shards[pair.end].ShardID,
@@ -315,9 +306,22 @@ cont2:
 			if err != nil {
 				panic(err)
 			}
-			break
+			goto cont3
 		}
 	}
+	panic(func() string {
+		s := "Could not find shard to close. Shards: "
+		shards, err := k.GetShards()
+		if err != nil {
+			return err.Error()
+		}
+		for _, shard := range shards {
+			s += shard.GoString()
+		}
+		return s
+	}(),
+	)
+cont3:
 
 	timeout.Reset(time.Minute)
 	select {
@@ -329,13 +333,8 @@ cont2:
 		k2.stopped <- Unit{}
 	}
 
-	producerStopC <- struct{}{}
-	timeout.Reset(time.Minute)
-	select {
-	case <-timeout.C:
-		panic("Messages dropped")
-	case <-stopped:
-	}
+	stopC <- struct{}{}
+	stopC <- struct{}{}
 
 	k.End()
 	k2.End()
