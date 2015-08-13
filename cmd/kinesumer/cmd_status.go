@@ -22,15 +22,12 @@ var cmdStatus = cli.Command{
 				Name:  "stream, s",
 				Usage: "The Kinesis stream to tail",
 			},
-		}, flagsAWSRedis...,
+		}, flagsRedis...,
 	),
 }
 
 func runStatus(ctx *cli.Context) {
 	k, err := kinesumer.NewDefaultKinesumer(
-		ctx.String(fAWSAccess),
-		ctx.String(fAWSSecret),
-		ctx.String(fAWSRegion),
 		ctx.String("stream"),
 	)
 	if err != nil {

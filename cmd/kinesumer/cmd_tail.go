@@ -22,7 +22,7 @@ var cmdTail = cli.Command{
 				Name:  "stream, s",
 				Usage: "The Kinesis stream to tail",
 			},
-		}, flagsAWSRedis...,
+		}, flagsRedis...,
 	),
 }
 
@@ -46,9 +46,6 @@ func (h tailHandlers) Err(err kinesumeriface.Error) {
 
 func runTail(ctx *cli.Context) {
 	k, err := kinesumer.NewDefaultKinesumer(
-		ctx.String(fAWSAccess),
-		ctx.String(fAWSSecret),
-		ctx.String(fAWSRegion),
 		ctx.String("stream"),
 	)
 	if err != nil {

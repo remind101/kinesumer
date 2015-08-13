@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/service/kinesis"
 	"github.com/remind101/kinesumer/checkpointers/empty"
 	k "github.com/remind101/kinesumer/interface"
@@ -49,14 +48,9 @@ var DefaultKinesumerOptions = KinesumerOptions{
 	DefaultIteratorType: "LATEST",
 }
 
-func NewDefaultKinesumer(awsAccessKey, awsSecretKey, awsRegion, stream string) (*Kinesumer, error) {
+func NewDefaultKinesumer(stream string) (*Kinesumer, error) {
 	return NewKinesumer(
-		kinesis.New(
-			&aws.Config{
-				Credentials: credentials.NewStaticCredentials(awsAccessKey, awsSecretKey, ""),
-				Region:      &awsRegion,
-			},
-		),
+		kinesis.New(&aws.Config{}),
 		nil,
 		nil,
 		nil,
