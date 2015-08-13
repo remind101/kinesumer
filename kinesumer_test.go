@@ -18,13 +18,13 @@ func makeTestKinesumer(t *testing.T) (*Kinesumer, *mocks.Kinesis, *mocks.Checkpo
 	kin := new(mocks.Kinesis)
 	sssm := new(mocks.Checkpointer)
 	prov := new(mocks.Provisioner)
-	k, err := NewKinesumer(
+	k, err := New(
 		kin,
 		sssm,
 		prov,
 		rand.NewSource(0),
 		"TestStream",
-		&KinesumerOptions{
+		&Options{
 			Handlers: testHandlers{},
 		},
 	)

@@ -28,15 +28,25 @@ func consecAll(n string, char rune) bool {
 	return true
 }
 
-func consec(n, sn string) bool {
+func consecHelper(n, sn string) bool {
 	if len(n) == 0 || len(sn) == 0 {
 		return false
 	} else if n[0] == sn[0] {
-		return consec(n[1:], sn[1:])
+		return consecHelper(n[1:], sn[1:])
 	} else if n[0]+1 == sn[0] {
 		return consecAll(n[1:], '9') && consecAll(sn[1:], '0')
 	} else {
 		return false
+	}
+}
+
+func consec(n, sn string) bool {
+	if len(n)*len(sn) == 0 {
+		return false
+	} else if len(n)+1 == len(sn) && sn[0] == '1' {
+		return consecAll(n, '9') && consecAll(sn[1:], '0')
+	} else {
+		return consecHelper(n, sn)
 	}
 }
 
@@ -50,6 +60,10 @@ func TestConsec(t *testing.T) {
 	}
 
 	if !consec("1233999", "1234000") {
+		t.Fail()
+	}
+
+	if !consec("9", "10") {
 		t.Fail()
 	}
 }
@@ -93,7 +107,7 @@ func TestIntegration(t *testing.T) {
 		panic(err)
 	}
 
-	kinOpt := KinesumerOptions{
+	kinOpt := Options{
 		ListStreamsLimit:    25,
 		DescribeStreamLimit: 25,
 		GetRecordsLimit:     25,
@@ -104,7 +118,7 @@ func TestIntegration(t *testing.T) {
 	}
 
 	fmt.Println("Creating Kinesumer")
-	k, err := NewKinesumer(kin, cp, prov, nil, stream, &kinOpt)
+	k, err := New(kin, cp, prov, nil, stream, &kinOpt)
 	if err != nil {
 		panic(err)
 	}
@@ -181,7 +195,7 @@ cont2:
 
 	kinOpt2 := kinOpt
 	kinOpt2.MaxShardWorkers = 3
-	k2, err := NewKinesumer(kin, cp2, prov2, nil, stream, &kinOpt2)
+	k2, err := New(kin, cp2, prov2, nil, stream, &kinOpt2)
 	if err != nil {
 		panic(err)
 	}
