@@ -1,4 +1,4 @@
-package kinesumer
+package redispool
 
 import (
 	"net/url"

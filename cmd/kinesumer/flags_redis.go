@@ -5,7 +5,8 @@ import (
 )
 
 var (
-	fRedisURL = "redis.url"
+	fRedisURL    = "redis.url"
+	fRedisPrefix = "redis.prefix"
 )
 
 var flagsRedis = []cli.Flag{
@@ -13,6 +14,11 @@ var flagsRedis = []cli.Flag{
 		Name:   fRedisURL,
 		Usage:  "The Redis URL",
 		EnvVar: "REDIS_URL",
+	},
+	cli.StringFlag{
+		Name:   fRedisPrefix,
+		Usage:  "The Redis key prefix",
+		EnvVar: "REDIS_PREFIX",
 	},
 }
 

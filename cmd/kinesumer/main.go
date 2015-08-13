@@ -4,6 +4,7 @@ import (
 	"os"
 
 	"github.com/codegangsta/cli"
+	_ "github.com/joho/godotenv/autoload"
 )
 
 func main() {
@@ -18,6 +19,7 @@ func main() {
 		},
 	}
 	app.Commands = []cli.Command{
+		cmdStatus,
 		cmdTail,
 	}
 	app.Run(os.Args)

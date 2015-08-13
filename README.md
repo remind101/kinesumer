@@ -28,15 +28,11 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/fatih/color"
 	"github.com/remind101/kinesumer"
 )
 
 func main() {
 	k, err := kinesumer.NewDefaultKinesumer(
-		"aws access",
-		"aws secret",
-		"us-east-1",
 		"Stream",
 	)
 	if err != nil {
@@ -46,14 +42,7 @@ func main() {
 	defer k.End()
 	for i := 0; i < 100; i++ {
 		rec := <-k.Records()
-		if rec.Err != nil {
-			fmt.Fprintln(os.Stdout, color.YellowString(rec.Err.Error()))
-			if rec.ShardID != nil {
-				fmt.Fprintln(os.Stdout, color.YellowString(fmt.Sprintf("at shard %v", *rec.ShardID)))
-			}
-		} else {
-			fmt.Println(string(rec.Data))
-		}
+		fmt.Println(string(rec.Data()))
 	}
 }
 ```

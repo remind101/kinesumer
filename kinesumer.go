@@ -2,32 +2,28 @@ package kinesumer
 
 import (
 	"errors"
+	"fmt"
+	"math/rand"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/service/kinesis"
+	"github.com/remind101/kinesumer/checkpointers/empty"
+	k "github.com/remind101/kinesumer/interface"
+	"github.com/remind101/kinesumer/provisioners/empty"
 )
 
-// Unit has only one possible value, Unit{}, and is used to make signal channels to tell the workers
-// when to stop
-type Unit struct{}
-
-type KinesumerAPI interface {
-	Begin() (err error)
-	End()
-	Records() <-chan *KinesisRecord
-}
-
 type Kinesumer struct {
-	Kinesis   KinesisAPI
-	StateSync ShardStateSync
-	Stream    *string
-	opt       *KinesumerOptions
-	records   chan *KinesisRecord
-	stop      chan Unit
-	stopped   chan Unit
-	nRunning  int
+	Kinesis      k.Kinesis
+	Checkpointer k.Checkpointer
+	Provisioner  k.Provisioner
+	Stream       string
+	Options      *KinesumerOptions
+	records      chan k.Record
+	stop         chan Unit
+	stopped      chan Unit
+	nRunning     int
+	rand         *rand.Rand
 }
 
 type KinesumerOptions struct {
@@ -35,146 +31,209 @@ type KinesumerOptions struct {
 	DescribeStreamLimit int64
 	GetRecordsLimit     int64
 	PollTime            int
+	MaxShardWorkers     int
+	Handlers            k.Handlers
+	DefaultIteratorType string
 }
 
 var DefaultKinesumerOptions = KinesumerOptions{
+	// These values are the hard limits set by Amazon
 	ListStreamsLimit:    1000,
 	DescribeStreamLimit: 10000,
-	GetRecordsLimit:     50,
+	GetRecordsLimit:     10000,
+
 	PollTime:            2000,
+	MaxShardWorkers:     50,
+	Handlers:            DefaultHandlers{},
+	DefaultIteratorType: "LATEST",
 }
 
-func NewDefaultKinesumer(awsAccessKey, awsSecretKey, awsRegion, stream string) (*Kinesumer, error) {
+func NewDefaultKinesumer(stream string) (*Kinesumer, error) {
 	return NewKinesumer(
-		kinesis.New(
-			&aws.Config{
-				Credentials: credentials.NewStaticCredentials(awsAccessKey, awsSecretKey, ""),
-				Region:      aws.String(awsRegion),
-			},
-		),
-		&EmptyStateSync{},
+		kinesis.New(&aws.Config{}),
+		nil,
+		nil,
+		nil,
 		stream,
-		&DefaultKinesumerOptions)
+		nil,
+	)
 }
 
-func NewDefaultRedisKinesumer(awsAccessKey, awsSecretKey, awsRegion, redisURL, stream string) (*Kinesumer, error) {
-	rss, err := NewRedisStateSync(&RedisStateSyncOptions{
-		ShardStateSyncOptions: ShardStateSyncOptions{
-			Ticker: time.NewTicker(5 * time.Second).C,
-		},
-	})
-	if err != nil {
-		return nil, err
+func NewKinesumer(kinesis k.Kinesis, checkpointer k.Checkpointer, provisioner k.Provisioner,
+	randSource rand.Source, stream string, opt *KinesumerOptions) (*Kinesumer, error) {
+
+	if kinesis == nil {
+		return nil, NewError(ECrit, "Kinesis object must not be nil", nil)
 	}
-	return NewKinesumer(
-		kinesis.New(
-			&aws.Config{
-				Credentials: credentials.NewStaticCredentials(awsAccessKey, awsSecretKey, ""),
-				Region:      aws.String(awsRegion),
-			},
-		),
-		rss,
-		stream,
-		&DefaultKinesumerOptions)
-}
 
-func NewKinesumer(kinesis KinesisAPI, stateSync ShardStateSync, stream string, opt *KinesumerOptions) (*Kinesumer, error) {
+	if checkpointer == nil {
+		checkpointer = emptycheckpointer.Checkpointer{}
+	}
+
+	if provisioner == nil {
+		provisioner = emptyprovisioner.Provisioner{}
+	}
+
+	if randSource == nil {
+		randSource = rand.NewSource(time.Now().UnixNano())
+	}
+
+	if len(stream) == 0 {
+		return nil, NewError(ECrit, "Stream name can't be empty", nil)
+	}
+
+	if opt == nil {
+		tmp := DefaultKinesumerOptions
+		opt = &tmp
+	}
+
 	return &Kinesumer{
-		Kinesis:   kinesis,
-		StateSync: stateSync,
-		Stream:    &stream,
-		opt:       opt,
-		records:   make(chan *KinesisRecord, opt.GetRecordsLimit*2+10),
+		Kinesis:      kinesis,
+		Checkpointer: checkpointer,
+		Provisioner:  provisioner,
+		Stream:       stream,
+		Options:      opt,
+		records:      make(chan k.Record, opt.GetRecordsLimit*2+10),
+		rand:         rand.New(randSource),
 	}, nil
 }
 
-func (k *Kinesumer) GetStreams() (streams []*string, err error) {
-	streams = make([]*string, 0)
-	err = k.Kinesis.ListStreamsPages(&kinesis.ListStreamsInput{
-		Limit: &k.opt.ListStreamsLimit,
+func (kin *Kinesumer) GetStreams() (streams []string, err error) {
+	streams = make([]string, 0)
+	err = kin.Kinesis.ListStreamsPages(&kinesis.ListStreamsInput{
+		Limit: &kin.Options.ListStreamsLimit,
 	}, func(sts *kinesis.ListStreamsOutput, _ bool) bool {
-		streams = append(streams, sts.StreamNames...)
+		streams = append(streams, aws.StringValueSlice(sts.StreamNames)...)
 		return true
 	})
 	return
 }
 
-func (k *Kinesumer) StreamExists() (found bool, err error) {
-	streams, err := k.GetStreams()
+func (kin *Kinesumer) StreamExists() (found bool, err error) {
+	streams, err := kin.GetStreams()
 	if err != nil {
 		return
 	}
 	for _, stream := range streams {
-		if *stream == *k.Stream {
+		if stream == kin.Stream {
 			return true, nil
 		}
 	}
 	return
 }
 
-func (k *Kinesumer) GetShards() (shards []*kinesis.Shard, err error) {
-	shards = make([]*kinesis.Shard, 0)
-	err = k.Kinesis.DescribeStreamPages(&kinesis.DescribeStreamInput{
-		Limit:      &k.opt.DescribeStreamLimit,
-		StreamName: k.Stream,
-	}, func(desc *kinesis.DescribeStreamOutput, _ bool) bool {
-		if desc == nil {
-			err = errors.New("Stream could not be described")
-			return false
+func (kin *Kinesumer) GetShards() (shards []*kinesis.Shard, err error) {
+	for {
+		retry := false
+		shards = make([]*kinesis.Shard, 0)
+		err = kin.Kinesis.DescribeStreamPages(&kinesis.DescribeStreamInput{
+			Limit:      &kin.Options.DescribeStreamLimit,
+			StreamName: &kin.Stream,
+		}, func(desc *kinesis.DescribeStreamOutput, _ bool) bool {
+			if desc == nil || desc.StreamDescription == nil {
+				err = errors.New("Stream could not be described")
+				return false
+			}
+			switch aws.StringValue(desc.StreamDescription.StreamStatus) {
+			case "CREATING":
+				retry = true
+				return false
+			case "DELETING":
+				err = errors.New("Stream is being deleted")
+				return false
+			}
+			shards = append(shards, desc.StreamDescription.Shards...)
+			return true
+		})
+		if retry {
+			time.Sleep(time.Second)
+		} else {
+			return
 		}
-		if *desc.StreamDescription.StreamStatus == "DELETING" {
-			err = errors.New("Stream is being deleted")
-			return false
-		}
-		shards = append(shards, desc.StreamDescription.Shards...)
-		return true
-	})
-	return
+	}
 }
 
-func (k *Kinesumer) Begin() (err error) {
-	shards, err := k.GetShards()
-	if err != nil {
-		return
-	}
-
-	err = k.StateSync.Begin(k.records)
-	if err != nil {
-		return
-	}
-
-	k.nRunning = len(shards)
-	k.stop = make(chan Unit, k.nRunning)
-	k.stopped = make(chan Unit, k.nRunning)
-	for _, shard := range shards {
-		worker := &ShardWorker{
-			kinesis:         k.Kinesis,
-			shard:           shard,
-			stateSync:       k.StateSync,
-			stream:          k.Stream,
-			pollTime:        k.opt.PollTime,
-			stop:            k.stop,
-			stopped:         k.stopped,
-			c:               k.records,
-			GetRecordsLimit: k.opt.GetRecordsLimit,
+func (kin *Kinesumer) LaunchShardWorker(shards []*kinesis.Shard) (int, *ShardWorker, error) {
+	perm := kin.rand.Perm(len(shards))
+	for _, j := range perm {
+		err := kin.Provisioner.TryAcquire(aws.StringValue(shards[j].ShardID))
+		if err == nil {
+			worker := &ShardWorker{
+				kinesis:             kin.Kinesis,
+				shard:               shards[j],
+				checkpointer:        kin.Checkpointer,
+				stream:              kin.Stream,
+				pollTime:            kin.Options.PollTime,
+				stop:                kin.stop,
+				stopped:             kin.stopped,
+				c:                   kin.records,
+				provisioner:         kin.Provisioner,
+				handlers:            kin.Options.Handlers,
+				defaultIteratorType: kin.Options.DefaultIteratorType,
+				GetRecordsLimit:     kin.Options.GetRecordsLimit,
+			}
+			kin.Options.Handlers.Go(func() {
+				worker.RunWorker()
+			})
+			kin.nRunning++
+			return j, worker, nil
 		}
-		go worker.RunWorker()
 	}
-
-	return
+	return 0, nil, errors.New("No unlocked keys")
 }
 
-func (k *Kinesumer) End() {
-	for k.nRunning > 0 {
+func (kin *Kinesumer) Begin() ([]*ShardWorker, error) {
+	shards, err := kin.GetShards()
+	if err != nil {
+		return nil, err
+	}
+
+	err = kin.Checkpointer.Begin(kin.Options.Handlers)
+	if err != nil {
+		return nil, err
+	}
+
+	n := kin.Options.MaxShardWorkers
+	if n <= 0 || len(shards) < n {
+		n = len(shards)
+	}
+
+	start := time.Now()
+	tryTime := 2 * kin.Provisioner.TTL()
+
+	kin.stop = make(chan Unit, n)
+	kin.stopped = make(chan Unit, n)
+
+	workers := make([]*ShardWorker, 0)
+	for kin.nRunning < n && len(shards) > 0 && time.Now().Sub(start) < tryTime {
+		for i := kin.nRunning; i < n; i++ {
+			j, worker, err := kin.LaunchShardWorker(shards)
+			if err != nil {
+				kin.Options.Handlers.Err(NewError(EWarn, "Could not start shard worker", err))
+			} else {
+				workers = append(workers, worker)
+				shards = append(shards[:j], shards[j+1:]...)
+			}
+		}
+		time.Sleep(500 * time.Millisecond)
+	}
+
+	kin.Options.Handlers.Err(NewError(EInfo, fmt.Sprintf("%v/%v workers started", kin.nRunning, n), nil))
+
+	return workers, nil
+}
+
+func (kin *Kinesumer) End() {
+	for kin.nRunning > 0 {
 		select {
-		case <-k.stopped:
-			k.nRunning--
-		case k.stop <- Unit{}:
+		case <-kin.stopped:
+			kin.nRunning--
+		case kin.stop <- Unit{}:
 		}
 	}
-	k.StateSync.End()
+	kin.Checkpointer.End()
 }
 
-func (k *Kinesumer) Records() <-chan *KinesisRecord {
-	return k.records
+func (kin *Kinesumer) Records() <-chan k.Record {
+	return kin.records
 }
