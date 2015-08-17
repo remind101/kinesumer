@@ -32,7 +32,7 @@ type Options struct {
 	GetRecordsLimit     int64
 	PollTime            int
 	MaxShardWorkers     int
-	Handlers            k.Handlers
+	ErrHandler          func(k.Error)
 	DefaultIteratorType string
 }
 
@@ -44,7 +44,7 @@ var DefaultOptions = Options{
 
 	PollTime:            2000,
 	MaxShardWorkers:     50,
-	Handlers:            DefaultHandlers{},
+	ErrHandler:          DefaultErrHandler,
 	DefaultIteratorType: "LATEST",
 }
 
@@ -85,6 +85,10 @@ func New(kinesis k.Kinesis, checkpointer k.Checkpointer, provisioner k.Provision
 	if opt == nil {
 		tmp := DefaultOptions
 		opt = &tmp
+	}
+
+	if opt.ErrHandler == nil {
+		opt.ErrHandler = DefaultErrHandler
 	}
 
 	return &Kinesumer{
@@ -168,14 +172,12 @@ func (kin *Kinesumer) LaunchShardWorker(shards []*kinesis.Shard) (int, *ShardWor
 				stopped:             kin.stopped,
 				c:                   kin.records,
 				provisioner:         kin.Provisioner,
-				handlers:            kin.Options.Handlers,
+				errHandler:          kin.Options.ErrHandler,
 				defaultIteratorType: kin.Options.DefaultIteratorType,
 				GetRecordsLimit:     kin.Options.GetRecordsLimit,
 			}
-			kin.Options.Handlers.Go(func() {
-				worker.RunWorker()
-			})
 			kin.nRunning++
+			go worker.RunWorker()
 			return j, worker, nil
 		}
 	}
@@ -188,7 +190,7 @@ func (kin *Kinesumer) Begin() ([]*ShardWorker, error) {
 		return nil, err
 	}
 
-	err = kin.Checkpointer.Begin(kin.Options.Handlers)
+	err = kin.Checkpointer.Begin()
 	if err != nil {
 		return nil, err
 	}
@@ -199,7 +201,7 @@ func (kin *Kinesumer) Begin() ([]*ShardWorker, error) {
 	}
 
 	start := time.Now()
-	tryTime := 2 * kin.Provisioner.TTL()
+	tryTime := 2*kin.Provisioner.TTL() + time.Second
 
 	kin.stop = make(chan Unit, n)
 	kin.stopped = make(chan Unit, n)
@@ -209,7 +211,7 @@ func (kin *Kinesumer) Begin() ([]*ShardWorker, error) {
 		for i := kin.nRunning; i < n; i++ {
 			j, worker, err := kin.LaunchShardWorker(shards)
 			if err != nil {
-				kin.Options.Handlers.Err(NewError(EWarn, "Could not start shard worker", err))
+				kin.Options.ErrHandler(NewError(EWarn, "Could not start shard worker", err))
 			} else {
 				workers = append(workers, worker)
 				shards = append(shards[:j], shards[j+1:]...)
@@ -218,7 +220,7 @@ func (kin *Kinesumer) Begin() ([]*ShardWorker, error) {
 		time.Sleep(500 * time.Millisecond)
 	}
 
-	kin.Options.Handlers.Err(NewError(EInfo, fmt.Sprintf("%v/%v workers started", kin.nRunning, n), nil))
+	kin.Options.ErrHandler(NewError(EInfo, fmt.Sprintf("%v/%v workers started", kin.nRunning, n), nil))
 
 	return workers, nil
 }

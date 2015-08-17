@@ -45,7 +45,7 @@ func makeTestShardWorker() (*ShardWorker, *mocks.Kinesis, *mocks.Checkpointer, *
 		stopped:         stopped,
 		c:               c,
 		provisioner:     prov,
-		handlers:        testHandlers{},
+		errHandler:      DefaultErrHandler,
 		GetRecordsLimit: 123,
 	}, kin, sssm, prov, stop, stopped, c
 }
@@ -110,7 +110,6 @@ func TestShardWorkerGetRecordsAndProcess(t *testing.T) {
 	assert.Equal(t, "AAAA", nextIt)
 	assert.Equal(t, "123", nextSeq)
 
-	resetTestHandlers()
 	err := awserr.New("bad", "bad", nil)
 	stp <- Unit{}
 	kin.On("GetRecords", mock.Anything).Return(&kinesis.GetRecordsOutput{
@@ -134,7 +133,6 @@ func TestShardWorkerRun(t *testing.T) {
 	prov.On("Release", mock.Anything).Return(nil)
 	sssm.On("GetStartSequence", mock.Anything).Return("AAAA")
 
-	resetTestHandlers()
 	record1 := kinesis.Record{
 		Data:           []byte("help I'm trapped"),
 		PartitionKey:   aws.String("aaaa"),

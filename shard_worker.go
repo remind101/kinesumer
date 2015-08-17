@@ -1,6 +1,7 @@
 package kinesumer
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -19,7 +20,7 @@ type ShardWorker struct {
 	stopped             chan<- Unit
 	c                   chan k.Record
 	provisioner         k.Provisioner
-	handlers            k.Handlers
+	errHandler          func(k.Error)
 	defaultIteratorType string
 	GetRecordsLimit     int64
 }
@@ -64,12 +65,12 @@ func (s *ShardWorker) GetRecordsAndProcess(it, sequence string) (cont bool, next
 	records, nextIt, lag, err := s.GetRecords(it)
 	if err != nil || len(records) == 0 {
 		if err != nil {
-			s.handlers.Err(NewError(EWarn, "GetRecords failed", err))
+			s.errHandler(NewError(EWarn, "GetRecords failed", err))
 			nextIt = s.TryGetShardIterator("AFTER_SEQUENCE_NUMBER", sequence)
 		}
 
 		if err := s.provisioner.Heartbeat(aws.StringValue(s.shard.ShardID)); err != nil {
-			s.handlers.Err(NewError(EError, "Heartbeat failed", err))
+			s.errHandler(NewError(EError, "Heartbeat failed", err))
 			return true, "", sequence
 		}
 		// GetRecords is not guaranteed to return records even if there are records to be read.
@@ -94,7 +95,7 @@ func (s *ShardWorker) GetRecordsAndProcess(it, sequence string) (cont bool, next
 			}
 
 			if err := s.provisioner.Heartbeat(aws.StringValue(s.shard.ShardID)); err != nil {
-				s.handlers.Err(NewError(EError, "Heartbeat failed", err))
+				s.errHandler(NewError(EError, "Heartbeat failed", err))
 				return true, "", sequence
 			}
 		}
@@ -104,6 +105,12 @@ func (s *ShardWorker) GetRecordsAndProcess(it, sequence string) (cont bool, next
 }
 
 func (s *ShardWorker) RunWorker() {
+	defer func() {
+		if val := recover(); val != nil {
+			msg := fmt.Sprintf("%v", val)
+			s.errHandler(NewError(ECrit, msg, nil))
+		}
+	}()
 	defer func() {
 		s.provisioner.Release(aws.StringValue(s.shard.ShardID))
 		s.stopped <- Unit{}
@@ -115,7 +122,7 @@ func (s *ShardWorker) RunWorker() {
 	if len(sequence) == 0 {
 		sequence = aws.StringValue(s.shard.SequenceNumberRange.StartingSequenceNumber)
 
-		s.handlers.Err(NewError(EWarn, "Using "+s.defaultIteratorType, nil))
+		s.errHandler(NewError(EWarn, "Using "+s.defaultIteratorType, nil))
 		it = s.TryGetShardIterator(s.defaultIteratorType, "")
 	} else {
 		it = s.TryGetShardIterator("AFTER_SEQUENCE_NUMBER", sequence)
@@ -124,12 +131,12 @@ func (s *ShardWorker) RunWorker() {
 loop:
 	for {
 		if len(it) == 0 || end != nil && sequence == *end {
-			s.handlers.Err(NewError(EWarn, "Shard has reached its end", nil))
+			s.errHandler(NewError(EWarn, "Shard has reached its end", nil))
 			break loop
 		}
 
 		if err := s.provisioner.Heartbeat(aws.StringValue(s.shard.ShardID)); err != nil {
-			s.handlers.Err(NewError(EError, "Heartbeat failed", err))
+			s.errHandler(NewError(EError, "Heartbeat failed", err))
 			break loop
 		}
 

@@ -59,7 +59,7 @@ func runStatus(ctx *cli.Context) {
 			RedisPrefix: prefix,
 		})
 
-		err = cp.Begin(kinesumer.DefaultHandlers{})
+		err = cp.Begin()
 		if err != nil {
 			panic(err)
 		}

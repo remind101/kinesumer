@@ -11,7 +11,7 @@ func (p Checkpointer) DoneC() chan<- k.Record {
 	return nil
 }
 
-func (p Checkpointer) Begin(k.Handlers) error {
+func (p Checkpointer) Begin() error {
 	return nil
 }
 
