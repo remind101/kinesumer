@@ -60,7 +60,7 @@ func TestKinesumerGetShards(t *testing.T) {
 	assert.Nil(t, err)
 	kin.AssertNumberOfCalls(t, "DescribeStreamPages", 1)
 	assert.Equal(t, 2, len(shards))
-	assert.Equal(t, "shard1", *shards[1].ShardID)
+	assert.Equal(t, "shard1", *shards[1].ShardId)
 }
 
 func TestKinesumerBeginEnd(t *testing.T) {

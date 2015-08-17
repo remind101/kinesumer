@@ -31,7 +31,7 @@ func (s *ShardWorker) GetShardIterator(iteratorType string, sequence string) (st
 		tmp = &sequence
 	}
 	iter, err := s.kinesis.GetShardIterator(&kinesis.GetShardIteratorInput{
-		ShardID:                s.shard.ShardID,
+		ShardId:                s.shard.ShardId,
 		ShardIteratorType:      &iteratorType,
 		StartingSequenceNumber: tmp,
 		StreamName:             &s.stream,
@@ -69,7 +69,7 @@ func (s *ShardWorker) GetRecordsAndProcess(it, sequence string) (cont bool, next
 			nextIt = s.TryGetShardIterator("AFTER_SEQUENCE_NUMBER", sequence)
 		}
 
-		if err := s.provisioner.Heartbeat(aws.StringValue(s.shard.ShardID)); err != nil {
+		if err := s.provisioner.Heartbeat(aws.StringValue(s.shard.ShardId)); err != nil {
 			s.errHandler(NewError(EError, "Heartbeat failed", err))
 			return true, "", sequence
 		}
@@ -89,12 +89,12 @@ func (s *ShardWorker) GetRecordsAndProcess(it, sequence string) (cont bool, next
 				data:               rec.Data,
 				partitionKey:       aws.StringValue(rec.PartitionKey),
 				sequenceNumber:     aws.StringValue(rec.SequenceNumber),
-				shardID:            aws.StringValue(s.shard.ShardID),
+				shardId:            aws.StringValue(s.shard.ShardId),
 				millisBehindLatest: lag,
 				checkpointC:        s.checkpointer.DoneC(),
 			}
 
-			if err := s.provisioner.Heartbeat(aws.StringValue(s.shard.ShardID)); err != nil {
+			if err := s.provisioner.Heartbeat(aws.StringValue(s.shard.ShardId)); err != nil {
 				s.errHandler(NewError(EError, "Heartbeat failed", err))
 				return true, "", sequence
 			}
@@ -112,11 +112,11 @@ func (s *ShardWorker) RunWorker() {
 		}
 	}()
 	defer func() {
-		s.provisioner.Release(aws.StringValue(s.shard.ShardID))
+		s.provisioner.Release(aws.StringValue(s.shard.ShardId))
 		s.stopped <- Unit{}
 	}()
 
-	sequence := s.checkpointer.GetStartSequence(aws.StringValue(s.shard.ShardID))
+	sequence := s.checkpointer.GetStartSequence(aws.StringValue(s.shard.ShardId))
 	end := s.shard.SequenceNumberRange.EndingSequenceNumber
 	var it string
 	if len(sequence) == 0 {
@@ -135,7 +135,7 @@ loop:
 			break loop
 		}
 
-		if err := s.provisioner.Heartbeat(aws.StringValue(s.shard.ShardID)); err != nil {
+		if err := s.provisioner.Heartbeat(aws.StringValue(s.shard.ShardId)); err != nil {
 			s.errHandler(NewError(EError, "Heartbeat failed", err))
 			break loop
 		}

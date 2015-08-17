@@ -106,7 +106,7 @@ loop:
 				break loop
 			}
 			r.mut.Lock()
-			r.heads[state.ShardID()] = state.SequenceNumber()
+			r.heads[state.ShardId()] = state.SequenceNumber()
 			r.modified = true
 			r.mut.Unlock()
 		}

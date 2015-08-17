@@ -115,30 +115,30 @@ func (m *Kinesis) DescribeStreamPages(_a0 *kinesis.DescribeStreamInput, _a1 func
 	ret := m.Called(_a0, _a1)
 
 	a := kinesis.Shard{
-		AdjacentParentShardID: nil,
+		AdjacentParentShardId: nil,
 		HashKeyRange: &kinesis.HashKeyRange{
 			StartingHashKey: aws.String("0"),
 			EndingHashKey:   aws.String("7f"),
 		},
-		ParentShardID: nil,
+		ParentShardId: nil,
 		SequenceNumberRange: &kinesis.SequenceNumberRange{
 			StartingSequenceNumber: aws.String("0"),
 			EndingSequenceNumber:   aws.String("100"),
 		},
-		ShardID: aws.String("shard0"),
+		ShardId: aws.String("shard0"),
 	}
 	b := kinesis.Shard{
-		AdjacentParentShardID: nil,
+		AdjacentParentShardId: nil,
 		HashKeyRange: &kinesis.HashKeyRange{
 			StartingHashKey: aws.String("80"),
 			EndingHashKey:   aws.String("ff"),
 		},
-		ParentShardID: nil,
+		ParentShardId: nil,
 		SequenceNumberRange: &kinesis.SequenceNumberRange{
 			StartingSequenceNumber: aws.String("101"),
 			EndingSequenceNumber:   aws.String("200"),
 		},
-		ShardID: aws.String("shard1"),
+		ShardId: aws.String("shard1"),
 	}
 	cont := _a1(
 		&kinesis.DescribeStreamOutput{

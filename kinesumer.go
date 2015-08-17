@@ -160,7 +160,7 @@ func (kin *Kinesumer) GetShards() (shards []*kinesis.Shard, err error) {
 func (kin *Kinesumer) LaunchShardWorker(shards []*kinesis.Shard) (int, *ShardWorker, error) {
 	perm := kin.rand.Perm(len(shards))
 	for _, j := range perm {
-		err := kin.Provisioner.TryAcquire(aws.StringValue(shards[j].ShardID))
+		err := kin.Provisioner.TryAcquire(aws.StringValue(shards[j].ShardId))
 		if err == nil {
 			worker := &ShardWorker{
 				kinesis:             kin.Kinesis,
