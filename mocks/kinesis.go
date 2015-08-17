@@ -1,10 +1,11 @@
 package mocks
 
-import "github.com/stretchr/testify/mock"
-
-import "github.com/aws/aws-sdk-go/aws"
-import "github.com/aws/aws-sdk-go/aws/service"
-import "github.com/aws/aws-sdk-go/service/kinesis"
+import (
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/service"
+	"github.com/aws/aws-sdk-go/service/kinesis"
+	"github.com/stretchr/testify/mock"
+)
 
 type Kinesis struct {
 	mock.Mock
