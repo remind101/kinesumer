@@ -13,17 +13,37 @@ import (
 	"github.com/remind101/kinesumer/provisioners/empty"
 )
 
+// A consumer for a Kinesis stream.
 type Kinesumer struct {
-	Kinesis      k.Kinesis
+	// The underlying Kinesis object, provided by https://github.com/aws/aws-sdk-go .
+	Kinesis k.Kinesis
+
+	// See documentation for Checkpointers.
 	Checkpointer k.Checkpointer
-	Provisioner  k.Provisioner
-	Stream       string
-	Options      *Options
-	records      chan k.Record
-	stop         chan Unit
-	stopped      chan Unit
-	nRunning     int
-	rand         *rand.Rand
+
+	// See document for Provisioners.
+	Provisioner k.Provisioner
+
+	// The name of the stream this Kinesumer will listen on
+	Stream string
+
+	// See documentation for Options.
+	Options *Options
+
+	// Received records go out through here.
+	records chan k.Record
+
+	// Send a unit down this channel to kill a random worker.
+	stop chan Unit
+
+	// Once a worker stops it sends a unit through here.
+	stopped chan Unit
+
+	// Misnomer: nRunning - [the # of units received through stopped] = [the # of workers currently running]
+	nRunning int
+
+	// Used for starting workers in a random order.
+	rand *rand.Rand
 }
 
 type Options struct {
