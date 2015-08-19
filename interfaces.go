@@ -8,8 +8,6 @@ type ICheckpointer kinesumeriface.Checkpointer
 
 type IError kinesumeriface.Error
 
-type IHandlers kinesumeriface.Handlers
-
 type IKinesis kinesumeriface.Kinesis
 
 type IKinesumer kinesumeriface.Kinesumer

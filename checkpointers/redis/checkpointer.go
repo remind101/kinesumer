@@ -1,6 +1,8 @@
 package redischeckpointer
 
 import (
+	"errors"
+	"fmt"
 	"sync"
 	"time"
 
@@ -17,7 +19,7 @@ type Checkpointer struct {
 	savePeriod  time.Duration
 	wg          sync.WaitGroup
 	modified    bool
-	handlers    k.Handlers
+	errHandler  func(k.Error)
 	readOnly    bool
 }
 
@@ -26,11 +28,15 @@ type Options struct {
 	SavePeriod  time.Duration
 	RedisPool   *redis.Pool
 	RedisPrefix string
+	ErrHandler  func(k.Error)
 }
 
-type Error struct{ origin error }
+type Error struct {
+	origin   error
+	severity string
+}
 
-func (e *Error) Severity() string { return "warn" }
+func (e *Error) Severity() string { return e.severity }
 
 func (e *Error) Origin() error { return e.origin }
 
@@ -41,6 +47,13 @@ func New(opt *Options) (*Checkpointer, error) {
 	if save == 0 {
 		save = 5 * time.Second
 	}
+
+	if opt.ErrHandler == nil {
+		opt.ErrHandler = func(err k.Error) {
+			panic(err)
+		}
+	}
+
 	return &Checkpointer{
 		heads:       make(map[string]string),
 		c:           make(chan k.Record),
@@ -49,6 +62,7 @@ func New(opt *Options) (*Checkpointer, error) {
 		redisPrefix: opt.RedisPrefix,
 		savePeriod:  save,
 		modified:    true,
+		errHandler:  opt.ErrHandler,
 		readOnly:    opt.ReadOnly,
 	}, nil
 }
@@ -68,13 +82,19 @@ func (r *Checkpointer) Sync() {
 		conn := r.pool.Get()
 		defer conn.Close()
 		if _, err := conn.Do("HMSET", redis.Args{r.redisPrefix + ".sequence"}.AddFlat(r.heads)...); err != nil {
-			r.handlers.Err(&Error{origin: err})
+			r.errHandler(&Error{err, k.EWarn})
 		}
 		r.modified = false
 	}
 }
 
 func (r *Checkpointer) RunCheckpointer() {
+	defer func() {
+		if val := recover(); val != nil {
+			err := errors.New(fmt.Sprintf("%v", val))
+			r.errHandler(&Error{err, k.ECrit})
+		}
+	}()
 	saveTicker := time.NewTicker(r.savePeriod).C
 loop:
 	for {
@@ -86,7 +106,7 @@ loop:
 				break loop
 			}
 			r.mut.Lock()
-			r.heads[state.ShardID()] = state.SequenceNumber()
+			r.heads[state.ShardId()] = state.SequenceNumber()
 			r.modified = true
 			r.mut.Unlock()
 		}
@@ -95,9 +115,7 @@ loop:
 	r.wg.Done()
 }
 
-func (r *Checkpointer) Begin(handlers k.Handlers) error {
-	r.handlers = handlers
-
+func (r *Checkpointer) Begin() error {
 	conn := r.pool.Get()
 	defer conn.Close()
 	res, err := conn.Do("HGETALL", r.redisPrefix+".sequence")
@@ -107,9 +125,7 @@ func (r *Checkpointer) Begin(handlers k.Handlers) error {
 	}
 
 	r.wg.Add(1)
-	r.handlers.Go(func() {
-		r.RunCheckpointer()
-	})
+	go r.RunCheckpointer()
 	return nil
 }
 

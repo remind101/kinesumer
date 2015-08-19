@@ -7,43 +7,43 @@
 	"Deps": [
 		{
 			"ImportPath": "github.com/aws/aws-sdk-go/aws",
-			"Comment": "v0.7.3-13-g4e554f7",
-			"Rev": "4e554f77f00d527b452c68a46f2e68595284121b"
+			"Comment": "v0.9.0rc1-6-g1ba5d88",
+			"Rev": "1ba5d8811803984c656ec0b1f621735235aff430"
 		},
 		{
 			"ImportPath": "github.com/aws/aws-sdk-go/internal/endpoints",
-			"Comment": "v0.7.3-13-g4e554f7",
-			"Rev": "4e554f77f00d527b452c68a46f2e68595284121b"
+			"Comment": "v0.9.0rc1-6-g1ba5d88",
+			"Rev": "1ba5d8811803984c656ec0b1f621735235aff430"
 		},
 		{
 			"ImportPath": "github.com/aws/aws-sdk-go/internal/protocol/json/jsonutil",
-			"Comment": "v0.7.3-13-g4e554f7",
-			"Rev": "4e554f77f00d527b452c68a46f2e68595284121b"
+			"Comment": "v0.9.0rc1-6-g1ba5d88",
+			"Rev": "1ba5d8811803984c656ec0b1f621735235aff430"
 		},
 		{
 			"ImportPath": "github.com/aws/aws-sdk-go/internal/protocol/jsonrpc",
-			"Comment": "v0.7.3-13-g4e554f7",
-			"Rev": "4e554f77f00d527b452c68a46f2e68595284121b"
+			"Comment": "v0.9.0rc1-6-g1ba5d88",
+			"Rev": "1ba5d8811803984c656ec0b1f621735235aff430"
 		},
 		{
 			"ImportPath": "github.com/aws/aws-sdk-go/internal/protocol/rest",
-			"Comment": "v0.7.3-13-g4e554f7",
-			"Rev": "4e554f77f00d527b452c68a46f2e68595284121b"
+			"Comment": "v0.9.0rc1-6-g1ba5d88",
+			"Rev": "1ba5d8811803984c656ec0b1f621735235aff430"
 		},
 		{
 			"ImportPath": "github.com/aws/aws-sdk-go/internal/signer/v4",
-			"Comment": "v0.7.3-13-g4e554f7",
-			"Rev": "4e554f77f00d527b452c68a46f2e68595284121b"
+			"Comment": "v0.9.0rc1-6-g1ba5d88",
+			"Rev": "1ba5d8811803984c656ec0b1f621735235aff430"
 		},
 		{
 			"ImportPath": "github.com/aws/aws-sdk-go/service/kinesis",
-			"Comment": "v0.7.3-13-g4e554f7",
-			"Rev": "4e554f77f00d527b452c68a46f2e68595284121b"
+			"Comment": "v0.9.0rc1-6-g1ba5d88",
+			"Rev": "1ba5d8811803984c656ec0b1f621735235aff430"
 		},
 		{
 			"ImportPath": "github.com/codegangsta/cli",
-			"Comment": "1.2.0-137-gbca61c4",
-			"Rev": "bca61c476e3c752594983e4c9bcd5f62fb09f157"
+			"Comment": "1.2.0-139-g142e6cd",
+			"Rev": "142e6cd241a4dfbf7f07a018f1f8225180018da4"
 		},
 		{
 			"ImportPath": "github.com/fatih/color",
@@ -52,11 +52,11 @@
 		},
 		{
 			"ImportPath": "github.com/garyburd/redigo/internal",
-			"Rev": "1a6effc8b0a7bb1b21c683ea5645c4e0fb52f302"
+			"Rev": "9d4db5d1dbeff473d50e1bb82f5405c8cca0f0ac"
 		},
 		{
 			"ImportPath": "github.com/garyburd/redigo/redis",
-			"Rev": "1a6effc8b0a7bb1b21c683ea5645c4e0fb52f302"
+			"Rev": "9d4db5d1dbeff473d50e1bb82f5405c8cca0f0ac"
 		},
 		{
 			"ImportPath": "github.com/joho/godotenv",
@@ -65,7 +65,7 @@
 		},
 		{
 			"ImportPath": "github.com/mattn/go-isatty",
-			"Rev": "ae0b1f8f8004be68d791a576e3d8e7648ab41449"
+			"Rev": "7fcbc72f853b92b5720db4a6b8482be612daef24"
 		},
 		{
 			"ImportPath": "github.com/pborman/uuid",
@@ -81,11 +81,13 @@
 		},
 		{
 			"ImportPath": "github.com/stretchr/testify/assert",
-			"Rev": "dab07ac62d4905d3e48d17dc549c684ac3b7c15a"
+			"Comment": "v1.0-21-gf552045",
+			"Rev": "f5520455607c0233cb6d7b056f71b22c1d265ef1"
 		},
 		{
 			"ImportPath": "github.com/stretchr/testify/mock",
-			"Rev": "dab07ac62d4905d3e48d17dc549c684ac3b7c15a"
+			"Comment": "v1.0-21-gf552045",
+			"Rev": "f5520455607c0233cb6d7b056f71b22c1d265ef1"
 		},
 		{
 			"ImportPath": "github.com/vaughan0/go-ini",

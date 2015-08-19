@@ -24,9 +24,7 @@ func makeTestKinesumer(t *testing.T) (*Kinesumer, *mocks.Kinesis, *mocks.Checkpo
 		prov,
 		rand.NewSource(0),
 		"TestStream",
-		&Options{
-			Handlers: testHandlers{},
-		},
+		nil,
 	)
 	if err != nil {
 		t.Error(err)
@@ -62,7 +60,7 @@ func TestKinesumerGetShards(t *testing.T) {
 	assert.Nil(t, err)
 	kin.AssertNumberOfCalls(t, "DescribeStreamPages", 1)
 	assert.Equal(t, 2, len(shards))
-	assert.Equal(t, "shard1", *shards[1].ShardID)
+	assert.Equal(t, "shard1", *shards[1].ShardId)
 }
 
 func TestKinesumerBeginEnd(t *testing.T) {
@@ -73,7 +71,6 @@ func TestKinesumerBeginEnd(t *testing.T) {
 	_, err := k.Begin()
 	assert.Error(t, err)
 
-	resetTestHandlers()
 	prov.On("TTL").Return(time.Millisecond * 10)
 	prov.On("TryAcquire", mock.Anything).Return(nil)
 	prov.On("Heartbeat", mock.Anything).Return(nil)
@@ -95,9 +92,5 @@ func TestKinesumerBeginEnd(t *testing.T) {
 	_, err = k.Begin()
 	assert.Nil(t, err)
 	assert.Equal(t, 2, k.nRunning)
-	assert.Equal(t, 2, len(toRun))
-	for _, f := range toRun {
-		go f()
-	}
 	k.End()
 }

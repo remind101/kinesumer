@@ -43,7 +43,7 @@ func New(opt *Options) (*Provisioner, error) {
 
 func (p *Provisioner) TryAcquire(shardID string) error {
 	if len(shardID) == 0 {
-		return errors.New("ShardID cannot be empty")
+		return errors.New("ShardId cannot be empty")
 	}
 
 	conn := p.pool.Get()

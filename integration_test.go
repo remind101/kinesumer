@@ -116,7 +116,6 @@ func TestIntegration(t *testing.T) {
 		GetRecordsLimit:     25,
 		PollTime:            1,
 		MaxShardWorkers:     2,
-		Handlers:            DefaultHandlers{},
 		DefaultIteratorType: "TRIM_HORIZON",
 	}
 
@@ -316,8 +315,8 @@ cont2:
 		if isConsecutive(*shards[pair.begin].HashKeyRange.EndingHashKey,
 			*shards[pair.end].HashKeyRange.StartingHashKey) {
 			_, err := kin.MergeShards(&kinesis.MergeShardsInput{
-				ShardToMerge:         shards[pair.begin].ShardID,
-				AdjacentShardToMerge: shards[pair.end].ShardID,
+				ShardToMerge:         shards[pair.begin].ShardId,
+				AdjacentShardToMerge: shards[pair.end].ShardId,
 				StreamName:           aws.String(stream),
 			})
 			if err != nil {
@@ -355,4 +354,24 @@ cont3:
 
 	k.End()
 	k2.End()
+
+	time.Sleep(time.Second)
+
+	fmt.Println("Deleting stream")
+	_, err = kin.DeleteStream(&kinesis.DeleteStreamInput{
+		StreamName: aws.String(stream),
+	})
+	if err != nil {
+		panic(err)
+	}
+
+	for i := 0; i < 60; i++ {
+		time.Sleep(time.Second)
+		if exists, err := k.StreamExists(); err != nil {
+			panic(err)
+		} else if !exists {
+			return
+		}
+	}
+	panic("Could not delete stream")
 }

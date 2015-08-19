@@ -59,7 +59,7 @@ func runStatus(ctx *cli.Context) {
 			RedisPrefix: prefix,
 		})
 
-		err = cp.Begin(kinesumer.DefaultHandlers{})
+		err = cp.Begin()
 		if err != nil {
 			panic(err)
 		}
@@ -83,7 +83,7 @@ func runStatus(ctx *cli.Context) {
 
 	for _, shard := range shards {
 		row := table.AddRow()
-		row.AddCellWithf("%s", *shard.ShardID)
+		row.AddCellWithf("%s", *shard.ShardId)
 		if shard.SequenceNumberRange.EndingSequenceNumber == nil {
 			row.AddCellWithf("OPEN").Color = color.New(color.FgGreen)
 		} else {
@@ -91,13 +91,13 @@ func runStatus(ctx *cli.Context) {
 		}
 		if redis {
 			cell := row.AddCell()
-			lock, err := prov.Check(*shard.ShardID)
+			lock, err := prov.Check(*shard.ShardId)
 			if err != nil {
 				lock = err.Error()
 				cell.Color = color.New(color.FgRed)
 			}
 			cell.Printf("%s", lock)
-			seqStart := StrShorten(cp.GetStartSequence(*shard.ShardID), 8, 8)
+			seqStart := StrShorten(cp.GetStartSequence(*shard.ShardId), 8, 8)
 			cell = row.AddCell()
 			if len(seqStart) == 0 {
 				seqStart = "???"

@@ -8,7 +8,7 @@ type Record struct {
 	data               []byte
 	partitionKey       string
 	sequenceNumber     string
-	shardID            string
+	shardId            string
 	millisBehindLatest int64
 	checkpointC        chan<- k.Record
 }
@@ -25,8 +25,8 @@ func (r *Record) SequenceNumber() string {
 	return r.sequenceNumber
 }
 
-func (r *Record) ShardID() string {
-	return r.shardID
+func (r *Record) ShardId() string {
+	return r.shardId
 }
 
 func (r *Record) MillisBehindLatest() int64 {

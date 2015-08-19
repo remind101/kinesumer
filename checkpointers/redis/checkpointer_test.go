@@ -5,19 +5,8 @@ import (
 	"time"
 
 	"github.com/garyburd/redigo/redis"
-	k "github.com/remind101/kinesumer/interface"
 	"github.com/remind101/kinesumer/redispool"
 )
-
-type TestHandlers struct{}
-
-func (h TestHandlers) Go(f func()) {
-	go f()
-}
-
-func (h TestHandlers) Err(e k.Error) {
-	panic(e)
-}
 
 var (
 	prefix      = "testing"
@@ -66,7 +55,7 @@ func TestRedisGoodLogin(t *testing.T) {
 
 func TestCheckpointerBeginEnd(t *testing.T) {
 	r := makeCheckpointerWithSamples()
-	err := r.Begin(TestHandlers{})
+	err := r.Begin()
 	if err != nil {
 		t.Error(err)
 	}
@@ -75,7 +64,7 @@ func TestCheckpointerBeginEnd(t *testing.T) {
 
 func TestCheckpointerGetStartSequence(t *testing.T) {
 	r := makeCheckpointerWithSamples()
-	_ = r.Begin(TestHandlers{})
+	_ = r.Begin()
 	r.End()
 	shard1 := "shard1"
 	seq := r.GetStartSequence(shard1)
@@ -86,13 +75,13 @@ func TestCheckpointerGetStartSequence(t *testing.T) {
 
 func TestCheckpointerSync(t *testing.T) {
 	r := makeCheckpointerWithSamples()
-	r.Begin(TestHandlers{})
+	r.Begin()
 	r.heads["shard1"] = "1001"
 	r.heads["shard2"] = "2001"
 	r.Sync()
 	r.End()
 	r, _ = makeCheckpointer()
-	r.Begin(TestHandlers{})
+	r.Begin()
 	r.End()
 	if r.heads["shard1"] != "1001" {
 		t.Error("Expected sequence number to be written")

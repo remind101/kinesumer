@@ -26,13 +26,7 @@ var cmdTail = cli.Command{
 	),
 }
 
-type tailHandlers struct{}
-
-func (h tailHandlers) Go(f func()) {
-	go f()
-}
-
-func (h tailHandlers) Err(err kinesumeriface.Error) {
+func ErrHandler(err kinesumeriface.Error) {
 	switch err.Severity() {
 	case kinesumer.ECrit:
 		fallthrough
@@ -52,7 +46,7 @@ func runTail(ctx *cli.Context) {
 		panic(err)
 	}
 
-	k.Options.Handlers = tailHandlers{}
+	k.Options.ErrHandler = ErrHandler
 
 	if redisURL := ctx.String(fRedisURL); len(redisURL) > 0 {
 		pool, err := redispool.NewRedisPool(redisURL)

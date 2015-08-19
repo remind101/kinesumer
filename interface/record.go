@@ -4,7 +4,7 @@ type Record interface {
 	Data() []byte
 	PartitionKey() string
 	SequenceNumber() string
-	ShardID() string
+	ShardId() string
 	MillisBehindLatest() int64
 	Done()
 }
