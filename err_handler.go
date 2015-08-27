@@ -14,3 +14,9 @@ func DefaultErrHandler(err k.Error) {
 		panic(err)
 	}
 }
+
+func ErrHandler(errHandler func(IError)) func(k.Error) {
+	return func(e k.Error) {
+		errHandler(e)
+	}
+}
