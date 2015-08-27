@@ -184,15 +184,15 @@ func (kin *Kinesumer) LaunchShardWorker(shards []*kinesis.Shard) (int, *ShardWor
 	return 0, nil, errors.New("No unlocked keys")
 }
 
-func (kin *Kinesumer) Begin() ([]*ShardWorker, error) {
+func (kin *Kinesumer) Begin() (int, error) {
 	shards, err := kin.GetShards()
 	if err != nil {
-		return nil, err
+		return 0, err
 	}
 
 	err = kin.Checkpointer.Begin()
 	if err != nil {
-		return nil, err
+		return 0, err
 	}
 
 	n := kin.Options.MaxShardWorkers
@@ -222,7 +222,7 @@ func (kin *Kinesumer) Begin() ([]*ShardWorker, error) {
 
 	kin.Options.ErrHandler(NewError(EInfo, fmt.Sprintf("%v/%v workers started", kin.nRunning, n), nil))
 
-	return workers, nil
+	return len(workers), nil
 }
 
 func (kin *Kinesumer) End() {
