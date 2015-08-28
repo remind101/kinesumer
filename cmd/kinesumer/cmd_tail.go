@@ -7,7 +7,6 @@ import (
 	"github.com/fatih/color"
 	"github.com/remind101/kinesumer"
 	"github.com/remind101/kinesumer/checkpointers/redis"
-	"github.com/remind101/kinesumer/interface"
 	"github.com/remind101/kinesumer/redispool"
 )
 
@@ -26,7 +25,7 @@ var cmdTail = cli.Command{
 	),
 }
 
-func ErrHandler(err kinesumeriface.Error) {
+func errHandler(err kinesumer.IError) {
 	switch err.Severity() {
 	case kinesumer.ECrit:
 		fallthrough
@@ -46,7 +45,7 @@ func runTail(ctx *cli.Context) {
 		panic(err)
 	}
 
-	k.Options.ErrHandler = ErrHandler
+	k.Options.ErrHandler = kinesumer.ErrHandler(errHandler)
 
 	if redisURL := ctx.String(fRedisURL); len(redisURL) > 0 {
 		pool, err := redispool.NewRedisPool(redisURL)
