@@ -18,24 +18,24 @@ var cmdShards = cli.Command{
 	Flags:   flagsStream,
 }
 
-type nums []*big.Int
+type ShardHashEndpoints []*big.Int
 
-func (n nums) Len() int {
+func (n ShardHashEndpoints) Len() int {
 	return len(n)
 }
 
-func (n nums) Swap(i, j int) {
+func (n ShardHashEndpoints) Swap(i, j int) {
 	n[i], n[j] = n[j], n[i]
 }
 
-func (n nums) Less(i, j int) bool {
+func (n ShardHashEndpoints) Less(i, j int) bool {
 	return n[i].Cmp(n[j]) < 0
 }
 
-func (n *nums) UniqSort() {
+func (n *ShardHashEndpoints) UniqSort() {
 	sort.Sort(n)
 
-	tmp := make(nums, 0)
+	tmp := make(ShardHashEndpoints, 0)
 	for _, key := range *n {
 		if len(tmp) == 0 || tmp[len(tmp)-1].Cmp(key) != 0 {
 			tmp = append(tmp, key)
@@ -45,8 +45,8 @@ func (n *nums) UniqSort() {
 	*n = tmp
 }
 
-func (n nums) Clone() nums {
-	p := make(nums, len(n))
+func (n ShardHashEndpoints) Clone() ShardHashEndpoints {
+	p := make(ShardHashEndpoints, len(n))
 	for i := 0; i < len(n); i++ {
 		p[i] = &big.Int{}
 		p[i].Set(n[i])
@@ -71,7 +71,7 @@ func runShards(ctx *cli.Context) {
 		fmt.Printf("No shards found on stream %s\n", stream)
 	}
 
-	keys := make(nums, 0)
+	keys := make(ShardHashEndpoints, 0)
 
 	for _, shard := range shards {
 		begin := &big.Int{}
