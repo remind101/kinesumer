@@ -1,7 +1,8 @@
 package main
 
 import (
-	"fmt"
+	"io"
+	"os"
 
 	"github.com/codegangsta/cli"
 	"github.com/fatih/color"
@@ -70,8 +71,7 @@ func runTail(ctx *cli.Context) {
 		panic(err)
 	}
 	defer k.End()
-	for {
-		rec := <-k.Records()
-		fmt.Println(string(rec.Data()))
-	}
+
+	r := kinesumer.NewReader(k.Records())
+	io.Copy(os.Stdout, r)
 }
