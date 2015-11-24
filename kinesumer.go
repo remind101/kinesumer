@@ -34,6 +34,7 @@ type Options struct {
 	MaxShardWorkers     int
 	ErrHandler          func(k.Error)
 	DefaultIteratorType string
+	StartWorkerTryTime  time.Duration
 }
 
 var DefaultOptions = Options{
@@ -46,6 +47,7 @@ var DefaultOptions = Options{
 	MaxShardWorkers:     50,
 	ErrHandler:          DefaultErrHandler,
 	DefaultIteratorType: "LATEST",
+	StartWorkerTryTime:  24 * time.Second,
 }
 
 func NewDefault(stream string) (*Kinesumer, error) {
@@ -200,8 +202,12 @@ func (kin *Kinesumer) Begin() (int, error) {
 		n = len(shards)
 	}
 
+	tryTime := kin.Options.StartWorkerTryTime
+	if tryTime < 2*kin.Provisioner.TTL()+time.Second {
+		tryTime = 2*kin.Provisioner.TTL() + time.Second
+	}
+
 	start := time.Now()
-	tryTime := 2*kin.Provisioner.TTL() + time.Second
 
 	kin.stop = make(chan Unit, n)
 	kin.stopped = make(chan Unit, n)
@@ -221,6 +227,10 @@ func (kin *Kinesumer) Begin() (int, error) {
 	}
 
 	kin.Options.ErrHandler(NewError(EInfo, fmt.Sprintf("%v/%v workers started", kin.nRunning, n), nil))
+
+	if len(workers) < 1 {
+		return len(workers), NewError(EWarn, "0 shard workers started", nil)
+	}
 
 	return len(workers), nil
 }
