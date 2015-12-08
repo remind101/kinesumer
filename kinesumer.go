@@ -30,22 +30,27 @@ type Options struct {
 	ListStreamsLimit    int64
 	DescribeStreamLimit int64
 	GetRecordsLimit     int64
+
+	// Amount of time to poll of records if consumer lag is minimal
 	PollTime            int
 	MaxShardWorkers     int
 	ErrHandler          func(k.Error)
 	DefaultIteratorType string
+
+	// How long to try and get shard iterator
+	ShardAcquisitionTimeout time.Duration
 }
 
 var DefaultOptions = Options{
 	// These values are the hard limits set by Amazon
-	ListStreamsLimit:    1000,
-	DescribeStreamLimit: 10000,
-	GetRecordsLimit:     10000,
-
-	PollTime:            2000,
-	MaxShardWorkers:     50,
-	ErrHandler:          DefaultErrHandler,
-	DefaultIteratorType: "LATEST",
+	ListStreamsLimit:        1000,
+	DescribeStreamLimit:     10000,
+	GetRecordsLimit:         10000,
+	PollTime:                2000,
+	MaxShardWorkers:         50,
+	ErrHandler:              DefaultErrHandler,
+	DefaultIteratorType:     "LATEST",
+	ShardAcquisitionTimeout: 90 * time.Second,
 }
 
 func NewDefault(stream string) (*Kinesumer, error) {
@@ -200,8 +205,12 @@ func (kin *Kinesumer) Begin() (int, error) {
 		n = len(shards)
 	}
 
+	tryTime := kin.Options.ShardAcquisitionTimeout
+	if tryTime < 2*kin.Provisioner.TTL()+time.Second {
+		tryTime = 2*kin.Provisioner.TTL() + time.Second
+	}
+
 	start := time.Now()
-	tryTime := 2*kin.Provisioner.TTL() + time.Second
 
 	kin.stop = make(chan Unit, n)
 	kin.stopped = make(chan Unit, n)
@@ -217,10 +226,14 @@ func (kin *Kinesumer) Begin() (int, error) {
 				shards = append(shards[:j], shards[j+1:]...)
 			}
 		}
-		time.Sleep(500 * time.Millisecond)
+		time.Sleep(time.Duration(500+rand.Intn(1500)) * time.Millisecond)
 	}
 
 	kin.Options.ErrHandler(NewError(EInfo, fmt.Sprintf("%v/%v workers started", kin.nRunning, n), nil))
+
+	if len(workers) < 1 {
+		return len(workers), NewError(EWarn, "0 shard workers started", nil)
+	}
 
 	return len(workers), nil
 }
