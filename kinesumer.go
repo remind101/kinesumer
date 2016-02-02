@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/kinesis"
 	"github.com/remind101/kinesumer/checkpointers/empty"
 	k "github.com/remind101/kinesumer/interface"
@@ -55,7 +56,7 @@ var DefaultOptions = Options{
 
 func NewDefault(stream string) (*Kinesumer, error) {
 	return New(
-		kinesis.New(&aws.Config{}),
+		kinesis.New(session.New()),
 		nil,
 		nil,
 		nil,

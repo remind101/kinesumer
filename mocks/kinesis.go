@@ -1,11 +1,12 @@
 package mocks
 
+import "github.com/stretchr/testify/mock"
+
 import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/request"
-	"github.com/aws/aws-sdk-go/service/kinesis"
-	"github.com/stretchr/testify/mock"
 )
+import "github.com/aws/aws-sdk-go/service/kinesis"
 
 type Kinesis struct {
 	mock.Mock
@@ -56,6 +57,31 @@ func (m *Kinesis) CreateStream(_a0 *kinesis.CreateStreamInput) (*kinesis.CreateS
 	var r0 *kinesis.CreateStreamOutput
 	if ret.Get(0) != nil {
 		r0 = ret.Get(0).(*kinesis.CreateStreamOutput)
+	}
+	r1 := ret.Error(1)
+
+	return r0, r1
+}
+func (m *Kinesis) DecreaseStreamRetentionPeriodRequest(_a0 *kinesis.DecreaseStreamRetentionPeriodInput) (*request.Request, *kinesis.DecreaseStreamRetentionPeriodOutput) {
+	ret := m.Called(_a0)
+
+	var r0 *request.Request
+	if ret.Get(0) != nil {
+		r0 = ret.Get(0).(*request.Request)
+	}
+	var r1 *kinesis.DecreaseStreamRetentionPeriodOutput
+	if ret.Get(1) != nil {
+		r1 = ret.Get(1).(*kinesis.DecreaseStreamRetentionPeriodOutput)
+	}
+
+	return r0, r1
+}
+func (m *Kinesis) DecreaseStreamRetentionPeriod(_a0 *kinesis.DecreaseStreamRetentionPeriodInput) (*kinesis.DecreaseStreamRetentionPeriodOutput, error) {
+	ret := m.Called(_a0)
+
+	var r0 *kinesis.DecreaseStreamRetentionPeriodOutput
+	if ret.Get(0) != nil {
+		r0 = ret.Get(0).(*kinesis.DecreaseStreamRetentionPeriodOutput)
 	}
 	r1 := ret.Error(1)
 
@@ -209,6 +235,31 @@ func (m *Kinesis) GetShardIterator(_a0 *kinesis.GetShardIteratorInput) (*kinesis
 	var r0 *kinesis.GetShardIteratorOutput
 	if ret.Get(0) != nil {
 		r0 = ret.Get(0).(*kinesis.GetShardIteratorOutput)
+	}
+	r1 := ret.Error(1)
+
+	return r0, r1
+}
+func (m *Kinesis) IncreaseStreamRetentionPeriodRequest(_a0 *kinesis.IncreaseStreamRetentionPeriodInput) (*request.Request, *kinesis.IncreaseStreamRetentionPeriodOutput) {
+	ret := m.Called(_a0)
+
+	var r0 *request.Request
+	if ret.Get(0) != nil {
+		r0 = ret.Get(0).(*request.Request)
+	}
+	var r1 *kinesis.IncreaseStreamRetentionPeriodOutput
+	if ret.Get(1) != nil {
+		r1 = ret.Get(1).(*kinesis.IncreaseStreamRetentionPeriodOutput)
+	}
+
+	return r0, r1
+}
+func (m *Kinesis) IncreaseStreamRetentionPeriod(_a0 *kinesis.IncreaseStreamRetentionPeriodInput) (*kinesis.IncreaseStreamRetentionPeriodOutput, error) {
+	ret := m.Called(_a0)
+
+	var r0 *kinesis.IncreaseStreamRetentionPeriodOutput
+	if ret.Get(0) != nil {
+		r0 = ret.Get(0).(*kinesis.IncreaseStreamRetentionPeriodOutput)
 	}
 	r1 := ret.Error(1)
 
