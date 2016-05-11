@@ -22,6 +22,10 @@ var cmdTail = cli.Command{
 				Name:  "stream, s",
 				Usage: "The Kinesis stream to tail",
 			},
+			cli.StringFlag{
+				Name:  "duration, d",
+				Usage: "Duration to go back and stream logs from",
+			},
 		}, flagsRedis...,
 	),
 }
@@ -41,6 +45,7 @@ func errHandler(err kinesumer.IError) {
 func runTail(ctx *cli.Context) {
 	k, err := kinesumer.NewDefault(
 		ctx.String("stream"),
+		ctx.String("duration"),
 	)
 	if err != nil {
 		panic(err)

@@ -58,6 +58,7 @@ func runShards(ctx *cli.Context) {
 	stream := getStream(ctx)
 	k, err := kinesumer.NewDefault(
 		stream,
+		"",
 	)
 	if err != nil {
 		panic(err)

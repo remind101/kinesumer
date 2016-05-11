@@ -40,6 +40,9 @@ type Options struct {
 
 	// How long to try and get shard iterator
 	ShardAcquisitionTimeout time.Duration
+
+	// ShardIteratorTimestamp is used when DefaultIteratorType is "AT_TIMESTAMP"
+	ShardIteratorTimestamp time.Time
 }
 
 var DefaultOptions = Options{
@@ -54,7 +57,7 @@ var DefaultOptions = Options{
 	ShardAcquisitionTimeout: 90 * time.Second,
 }
 
-func NewDefault(stream string) (*Kinesumer, error) {
+func NewDefault(stream, duration string) (*Kinesumer, error) {
 	return New(
 		kinesis.New(session.New()),
 		nil,
@@ -62,11 +65,12 @@ func NewDefault(stream string) (*Kinesumer, error) {
 		nil,
 		stream,
 		nil,
+		duration,
 	)
 }
 
 func New(kinesis k.Kinesis, checkpointer k.Checkpointer, provisioner k.Provisioner,
-	randSource rand.Source, stream string, opt *Options) (*Kinesumer, error) {
+	randSource rand.Source, stream string, opt *Options, duration string) (*Kinesumer, error) {
 
 	if kinesis == nil {
 		return nil, NewError(ECrit, "Kinesis object must not be nil", nil)
@@ -95,6 +99,11 @@ func New(kinesis k.Kinesis, checkpointer k.Checkpointer, provisioner k.Provision
 
 	if opt.ErrHandler == nil {
 		opt.ErrHandler = DefaultErrHandler
+	}
+
+	if d, err := time.ParseDuration(duration); err == nil {
+		opt.DefaultIteratorType = "AT_TIMESTAMP"
+		opt.ShardIteratorTimestamp = time.Now().Add(d * -1)
 	}
 
 	return &Kinesumer{
@@ -169,18 +178,19 @@ func (kin *Kinesumer) LaunchShardWorker(shards []*kinesis.Shard) (int, *ShardWor
 		err := kin.Provisioner.TryAcquire(aws.StringValue(shards[j].ShardId))
 		if err == nil {
 			worker := &ShardWorker{
-				kinesis:             kin.Kinesis,
-				shard:               shards[j],
-				checkpointer:        kin.Checkpointer,
-				stream:              kin.Stream,
-				pollTime:            kin.Options.PollTime,
-				stop:                kin.stop,
-				stopped:             kin.stopped,
-				c:                   kin.records,
-				provisioner:         kin.Provisioner,
-				errHandler:          kin.Options.ErrHandler,
-				defaultIteratorType: kin.Options.DefaultIteratorType,
-				GetRecordsLimit:     kin.Options.GetRecordsLimit,
+				kinesis:                kin.Kinesis,
+				shard:                  shards[j],
+				checkpointer:           kin.Checkpointer,
+				stream:                 kin.Stream,
+				pollTime:               kin.Options.PollTime,
+				stop:                   kin.stop,
+				stopped:                kin.stopped,
+				c:                      kin.records,
+				provisioner:            kin.Provisioner,
+				errHandler:             kin.Options.ErrHandler,
+				defaultIteratorType:    kin.Options.DefaultIteratorType,
+				shardIteratorTimestamp: kin.Options.ShardIteratorTimestamp,
+				GetRecordsLimit:        kin.Options.GetRecordsLimit,
 			}
 			kin.nRunning++
 			go worker.RunWorker()

@@ -22,6 +22,7 @@ var cmdStatus = cli.Command{
 func runStatus(ctx *cli.Context) {
 	k, err := kinesumer.NewDefault(
 		getStream(ctx),
+		"",
 	)
 	if err != nil {
 		panic(err)
