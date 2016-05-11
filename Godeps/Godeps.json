@@ -7,38 +7,38 @@
 	"Deps": [
 		{
 			"ImportPath": "github.com/aws/aws-sdk-go/aws",
-			"Comment": "v1.0.2",
-			"Rev": "9d7bc2d6ca2ada0468f705f0e9725ca97f8550c8"
+			"Comment": "v1.1.25",
+			"Rev": "02ee239c4ddbc6750fd0c3b5b5728b2b33aa92b4"
 		},
 		{
 			"ImportPath": "github.com/aws/aws-sdk-go/private/protocol/json/jsonutil",
-			"Comment": "v1.0.2",
-			"Rev": "9d7bc2d6ca2ada0468f705f0e9725ca97f8550c8"
+			"Comment": "v1.1.25",
+			"Rev": "02ee239c4ddbc6750fd0c3b5b5728b2b33aa92b4"
 		},
 		{
 			"ImportPath": "github.com/aws/aws-sdk-go/private/protocol/jsonrpc",
-			"Comment": "v1.0.2",
-			"Rev": "9d7bc2d6ca2ada0468f705f0e9725ca97f8550c8"
+			"Comment": "v1.1.25",
+			"Rev": "02ee239c4ddbc6750fd0c3b5b5728b2b33aa92b4"
 		},
 		{
 			"ImportPath": "github.com/aws/aws-sdk-go/private/protocol/rest",
-			"Comment": "v1.0.2",
-			"Rev": "9d7bc2d6ca2ada0468f705f0e9725ca97f8550c8"
+			"Comment": "v1.1.25",
+			"Rev": "02ee239c4ddbc6750fd0c3b5b5728b2b33aa92b4"
 		},
 		{
 			"ImportPath": "github.com/aws/aws-sdk-go/private/signer/v4",
-			"Comment": "v1.0.2",
-			"Rev": "9d7bc2d6ca2ada0468f705f0e9725ca97f8550c8"
+			"Comment": "v1.1.25",
+			"Rev": "02ee239c4ddbc6750fd0c3b5b5728b2b33aa92b4"
 		},
 		{
 			"ImportPath": "github.com/aws/aws-sdk-go/private/waiter",
-			"Comment": "v1.0.2",
-			"Rev": "9d7bc2d6ca2ada0468f705f0e9725ca97f8550c8"
+			"Comment": "v1.1.25",
+			"Rev": "02ee239c4ddbc6750fd0c3b5b5728b2b33aa92b4"
 		},
 		{
 			"ImportPath": "github.com/aws/aws-sdk-go/service/kinesis",
-			"Comment": "v1.0.2",
-			"Rev": "9d7bc2d6ca2ada0468f705f0e9725ca97f8550c8"
+			"Comment": "v1.1.25",
+			"Rev": "02ee239c4ddbc6750fd0c3b5b5728b2b33aa92b4"
 		},
 		{
 			"ImportPath": "github.com/codegangsta/cli",
