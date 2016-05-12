@@ -57,7 +57,7 @@ var DefaultOptions = Options{
 	ShardAcquisitionTimeout: 90 * time.Second,
 }
 
-func NewDefault(stream, duration string) (*Kinesumer, error) {
+func NewDefault(stream string, duration time.Duration) (*Kinesumer, error) {
 	return New(
 		kinesis.New(session.New()),
 		nil,
@@ -70,7 +70,7 @@ func NewDefault(stream, duration string) (*Kinesumer, error) {
 }
 
 func New(kinesis k.Kinesis, checkpointer k.Checkpointer, provisioner k.Provisioner,
-	randSource rand.Source, stream string, opt *Options, duration string) (*Kinesumer, error) {
+	randSource rand.Source, stream string, opt *Options, duration time.Duration) (*Kinesumer, error) {
 
 	if kinesis == nil {
 		return nil, NewError(ECrit, "Kinesis object must not be nil", nil)
@@ -101,9 +101,9 @@ func New(kinesis k.Kinesis, checkpointer k.Checkpointer, provisioner k.Provision
 		opt.ErrHandler = DefaultErrHandler
 	}
 
-	if d, err := time.ParseDuration(duration); err == nil {
+	if duration != 0 {
 		opt.DefaultIteratorType = "AT_TIMESTAMP"
-		opt.ShardIteratorTimestamp = time.Now().Add(d * -1)
+		opt.ShardIteratorTimestamp = time.Now().Add(duration * -1)
 	}
 
 	return &Kinesumer{

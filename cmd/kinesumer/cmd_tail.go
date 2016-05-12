@@ -3,6 +3,7 @@ package main
 import (
 	"io"
 	"os"
+	"time"
 
 	"github.com/codegangsta/cli"
 	"github.com/fatih/color"
@@ -43,9 +44,17 @@ func errHandler(err kinesumer.IError) {
 }
 
 func runTail(ctx *cli.Context) {
+	var duration time.Duration
+	var err error
+	if ctx.String("duration") != "" {
+		duration, err = time.ParseDuration(ctx.String("duration"))
+		if err != nil {
+			panic(err)
+		}
+	}
 	k, err := kinesumer.NewDefault(
 		ctx.String("stream"),
-		ctx.String("duration"),
+		duration,
 	)
 	if err != nil {
 		panic(err)

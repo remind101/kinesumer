@@ -5,6 +5,7 @@ import (
 	"math/big"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/codegangsta/cli"
 	"github.com/remind101/kinesumer"
@@ -58,7 +59,7 @@ func runShards(ctx *cli.Context) {
 	stream := getStream(ctx)
 	k, err := kinesumer.NewDefault(
 		stream,
-		"",
+		time.Duration(0),
 	)
 	if err != nil {
 		panic(err)
