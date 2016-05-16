@@ -3,6 +3,7 @@ package main
 import (
 	"io"
 	"os"
+	"time"
 
 	"github.com/codegangsta/cli"
 	"github.com/fatih/color"
@@ -22,6 +23,10 @@ var cmdTail = cli.Command{
 				Name:  "stream, s",
 				Usage: "The Kinesis stream to tail",
 			},
+			cli.StringFlag{
+				Name:  "duration, d",
+				Usage: "Duration to go back and stream logs from",
+			},
 		}, flagsRedis...,
 	),
 }
@@ -39,8 +44,17 @@ func errHandler(err kinesumer.IError) {
 }
 
 func runTail(ctx *cli.Context) {
+	var duration time.Duration
+	var err error
+	if ctx.String("duration") != "" {
+		duration, err = time.ParseDuration(ctx.String("duration"))
+		if err != nil {
+			panic(err)
+		}
+	}
 	k, err := kinesumer.NewDefault(
 		ctx.String("stream"),
+		duration,
 	)
 	if err != nil {
 		panic(err)

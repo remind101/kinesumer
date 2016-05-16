@@ -1,3 +1,4 @@
 cmd/kinesumer/kinesumer
 .env
 .idea
+build
