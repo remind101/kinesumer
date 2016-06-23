@@ -8,6 +8,10 @@ checkout:
     - mkdir -p ~/.go_workspace/src/github.com/remind101
     - cp -R ~/kinesumer ~/.go_workspace/src/github.com/remind101/kinesumer
 
+dependencies:
+  override:
+    - /bin/true
+
 test:
   override:
     - cd ~/.go_workspace/src/github.com/remind101/kinesumer && go test
