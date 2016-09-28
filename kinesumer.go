@@ -14,6 +14,16 @@ import (
 	"github.com/remind101/kinesumer/provisioners/empty"
 )
 
+const (
+	// According to the Kinesis limits documentation:
+	//
+	//	Each shard can support up to 5 transactions per second for
+	//	reads, up to a maximum total data read rate of 2 MB per second.
+	//
+	// See http://docs.aws.amazon.com/streams/latest/dev/service-sizes-and-limits.html
+	DefaultGetRecordsThrottle = 200 * time.Millisecond
+)
+
 type Kinesumer struct {
 	Kinesis      k.Kinesis
 	Checkpointer k.Checkpointer
@@ -31,6 +41,10 @@ type Options struct {
 	ListStreamsLimit    int64
 	DescribeStreamLimit int64
 	GetRecordsLimit     int64
+
+	// Determines how frequently GetRecords is throttled. The zero value is
+	// DefaultGetRecordsThrottle.
+	GetRecordsThrottle time.Duration
 
 	// Amount of time to poll of records if consumer lag is minimal
 	PollTime            int
@@ -50,6 +64,7 @@ var DefaultOptions = Options{
 	ListStreamsLimit:        1000,
 	DescribeStreamLimit:     10000,
 	GetRecordsLimit:         10000,
+	GetRecordsThrottle:      DefaultGetRecordsThrottle,
 	PollTime:                2000,
 	MaxShardWorkers:         50,
 	ErrHandler:              DefaultErrHandler,
@@ -190,6 +205,7 @@ func (kin *Kinesumer) LaunchShardWorker(shards []*kinesis.Shard) (int, *ShardWor
 				errHandler:             kin.Options.ErrHandler,
 				defaultIteratorType:    kin.Options.DefaultIteratorType,
 				shardIteratorTimestamp: kin.Options.ShardIteratorTimestamp,
+				getRecordsThrottle:     getRecordsThrottle(kin.Options.GetRecordsThrottle),
 				GetRecordsLimit:        kin.Options.GetRecordsLimit,
 			}
 			kin.nRunning++
@@ -262,4 +278,14 @@ func (kin *Kinesumer) End() {
 
 func (kin *Kinesumer) Records() <-chan k.Record {
 	return kin.records
+}
+
+// getRecordsThrottle returns a channel that will tick every time d has elapsed.
+// If d is 0, DefaultGetRecordsThrottle will be used.
+func getRecordsThrottle(d time.Duration) <-chan time.Time {
+	if d == 0 {
+		d = DefaultGetRecordsThrottle
+	}
+
+	return time.NewTicker(d).C
 }

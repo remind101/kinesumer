@@ -23,6 +23,10 @@ func makeTestShardWorker() (*ShardWorker, *mocks.Kinesis, *mocks.Checkpointer, *
 	stopped := make(chan Unit, 1)
 	c := make(chan k.Record, 100)
 
+	// No throttling in tests
+	getRecordsThrottle := make(chan time.Time)
+	close(getRecordsThrottle)
+
 	return &ShardWorker{
 		kinesis: kin,
 		shard: &kinesis.Shard{
@@ -38,15 +42,16 @@ func makeTestShardWorker() (*ShardWorker, *mocks.Kinesis, *mocks.Checkpointer, *
 			},
 			ShardId: aws.String("shard0"),
 		},
-		checkpointer:    sssm,
-		stream:          "TestStream",
-		sequence:        "123",
-		stop:            stop,
-		stopped:         stopped,
-		c:               c,
-		provisioner:     prov,
-		errHandler:      DefaultErrHandler,
-		GetRecordsLimit: 123,
+		checkpointer:       sssm,
+		stream:             "TestStream",
+		sequence:           "123",
+		stop:               stop,
+		stopped:            stopped,
+		c:                  c,
+		provisioner:        prov,
+		errHandler:         DefaultErrHandler,
+		getRecordsThrottle: getRecordsThrottle,
+		GetRecordsLimit:    123,
 	}, kin, sssm, prov, stop, stopped, c
 }
 
