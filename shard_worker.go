@@ -23,6 +23,7 @@ type ShardWorker struct {
 	errHandler             func(k.Error)
 	defaultIteratorType    string
 	shardIteratorTimestamp time.Time
+	getRecordsThrottle     <-chan time.Time
 	GetRecordsLimit        int64
 }
 
@@ -53,6 +54,8 @@ func (s *ShardWorker) TryGetShardIterator(iteratorType string, sequence string, 
 }
 
 func (s *ShardWorker) GetRecords(it string) ([]*kinesis.Record, string, int64, error) {
+	<-s.getRecordsThrottle
+
 	resp, err := s.kinesis.GetRecords(&kinesis.GetRecordsInput{
 		Limit:         &s.GetRecordsLimit,
 		ShardIterator: &it,
