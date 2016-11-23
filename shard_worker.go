@@ -70,7 +70,7 @@ func (s *ShardWorker) GetRecordsAndProcess(it, sequence string) (cont bool, next
 	records, nextIt, lag, err := s.GetRecords(it)
 	if err != nil || len(records) == 0 {
 		if err != nil {
-			msg := fmt.Sprintf("GetRecords Failed with lag of %d", lag)
+			msg := fmt.Sprintf("GetRecords Failed with %d records and lag of %d on shard %s", len(records), lag, s.shard.ShardId)
 			s.errHandler(NewError(EWarn, msg, err))
 			nextIt, err = s.GetShardIterator("AFTER_SEQUENCE_NUMBER", sequence, time.Time{})
 			if err != nil {
