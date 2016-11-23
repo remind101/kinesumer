@@ -107,6 +107,10 @@ func New(kinesis k.Kinesis, checkpointer k.Checkpointer, provisioner k.Provision
 		return nil, NewError(ECrit, "Stream name can't be empty", nil)
 	}
 
+	if opt.PollTime == 0 {
+		return nil, NewError(ECrit, "Poll Time can't be zero", nil)
+	}
+
 	if opt == nil {
 		tmp := DefaultOptions
 		opt = &tmp
