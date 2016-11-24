@@ -125,6 +125,7 @@ func (s *ShardWorker) RunWorker() {
 		s.stopped <- Unit{}
 	}()
 
+	s.errHandler(NewError(EInfo, "Starting worker", fmt.Errorf("shard: %s", s.shard.ShardId)))
 	sequence := s.checkpointer.GetStartSequence(aws.StringValue(s.shard.ShardId))
 	end := s.shard.SequenceNumberRange.EndingSequenceNumber
 	var it string
