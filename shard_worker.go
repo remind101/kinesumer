@@ -70,7 +70,7 @@ func (s *ShardWorker) GetRecordsAndProcess(it, sequence string) (cont bool, next
 	records, nextIt, lag, err := s.GetRecords(it)
 	if err != nil || len(records) == 0 {
 		if err != nil {
-			msg := fmt.Sprintf("GetRecords Failed with %d records and lag of %d on shard %s", len(records), lag, s.shard.ShardId)
+			msg := fmt.Sprintf("GetRecords Failed with %d records and lag of %d on shard %s, should wait %d before retrying", len(records), lag, aws.StringValue(s.shard.ShardId), s.pollTime)
 			s.errHandler(NewError(EWarn, msg, err))
 			nextIt, err = s.GetShardIterator("AFTER_SEQUENCE_NUMBER", sequence, time.Time{})
 			if err != nil {
@@ -125,7 +125,7 @@ func (s *ShardWorker) RunWorker() {
 		s.stopped <- Unit{}
 	}()
 
-	s.errHandler(NewError(EInfo, "Starting worker", fmt.Errorf("shard: %s", s.shard.ShardId)))
+	s.errHandler(NewError(EInfo, "Starting worker", fmt.Errorf("shard: %s", aws.StringValue(s.shard.ShardId))))
 	sequence := s.checkpointer.GetStartSequence(aws.StringValue(s.shard.ShardId))
 	end := s.shard.SequenceNumberRange.EndingSequenceNumber
 	var it string
