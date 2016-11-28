@@ -21,6 +21,7 @@ type ShardWorker struct {
 	c                      chan k.Record
 	provisioner            k.Provisioner
 	errHandler             func(k.Error)
+	metricsReporter        k.MetricsReporter
 	defaultIteratorType    string
 	shardIteratorTimestamp time.Time
 	getRecordsThrottle     <-chan time.Time
@@ -56,6 +57,7 @@ func (s *ShardWorker) TryGetShardIterator(iteratorType string, sequence string, 
 func (s *ShardWorker) GetRecords(it string) ([]*kinesis.Record, string, int64, error) {
 	<-s.getRecordsThrottle
 
+	s.metricsReporter.Count("kinesumer.get_records.requests", 1, map[string]string{"shard": aws.StringValue(s.shard.ShardId)}, 1.0)
 	resp, err := s.kinesis.GetRecords(&kinesis.GetRecordsInput{
 		Limit:         &s.GetRecordsLimit,
 		ShardIterator: &it,
@@ -68,6 +70,7 @@ func (s *ShardWorker) GetRecords(it string) ([]*kinesis.Record, string, int64, e
 
 func (s *ShardWorker) GetRecordsAndProcess(it, sequence string) (cont bool, nextIt string, nextSeq string) {
 	records, nextIt, lag, err := s.GetRecords(it)
+	s.metricsReporter.Count("kinesumer.get_records.record_count", int64(len(records)), map[string]string{"shard": aws.StringValue(s.shard.ShardId)}, 1.0)
 	if err != nil || len(records) == 0 {
 		if err != nil {
 			msg := fmt.Sprintf("GetRecords Failed with %d records and lag of %d on shard %s, should wait %d before retrying", len(records), lag, aws.StringValue(s.shard.ShardId), s.pollTime)
@@ -86,6 +89,7 @@ func (s *ShardWorker) GetRecordsAndProcess(it, sequence string) (cont bool, next
 		// However, if our lag time behind the shard head is <= 3 seconds then there's probably
 		// no records.
 		if lag <= 3000 /* milliseconds */ {
+			s.metricsReporter.Count("kinesumer.get_records.polling", 1, map[string]string{"shard": aws.StringValue(s.shard.ShardId)}, 1.0)
 			select {
 			case <-time.NewTimer(time.Duration(s.pollTime) * time.Millisecond).C:
 			case <-s.stop:

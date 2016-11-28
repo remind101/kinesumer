@@ -50,6 +50,7 @@ func makeTestShardWorker() (*ShardWorker, *mocks.Kinesis, *mocks.Checkpointer, *
 		c:                  c,
 		provisioner:        prov,
 		errHandler:         DefaultErrHandler,
+		metricsReporter:    DefaultMetricsReporter(),
 		getRecordsThrottle: getRecordsThrottle,
 		GetRecordsLimit:    123,
 	}, kin, sssm, prov, stop, stopped, c

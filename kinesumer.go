@@ -50,6 +50,7 @@ type Options struct {
 	PollTime            int
 	MaxShardWorkers     int
 	ErrHandler          func(k.Error)
+	MetricsReporter     k.MetricsReporter
 	DefaultIteratorType string
 
 	// How long to try and get shard iterator
@@ -68,6 +69,7 @@ var DefaultOptions = Options{
 	PollTime:                2000,
 	MaxShardWorkers:         50,
 	ErrHandler:              DefaultErrHandler,
+	MetricsReporter:         DefaultMetricsReporter(),
 	DefaultIteratorType:     "LATEST",
 	ShardAcquisitionTimeout: 90 * time.Second,
 }
@@ -118,6 +120,10 @@ func New(kinesis k.Kinesis, checkpointer k.Checkpointer, provisioner k.Provision
 
 	if opt.ErrHandler == nil {
 		opt.ErrHandler = DefaultErrHandler
+	}
+
+	if opt.MetricsReporter == nil {
+		opt.MetricsReporter = DefaultMetricsReporter()
 	}
 
 	if duration != 0 {
@@ -207,6 +213,7 @@ func (kin *Kinesumer) LaunchShardWorker(shards []*kinesis.Shard) (int, *ShardWor
 				c:                      kin.records,
 				provisioner:            kin.Provisioner,
 				errHandler:             kin.Options.ErrHandler,
+				metricsReporter:        kin.Options.MetricsReporter,
 				defaultIteratorType:    kin.Options.DefaultIteratorType,
 				shardIteratorTimestamp: kin.Options.ShardIteratorTimestamp,
 				getRecordsThrottle:     getRecordsThrottle(kin.Options.GetRecordsThrottle),
