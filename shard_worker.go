@@ -172,6 +172,7 @@ loop:
 		}
 		loopDuration := time.Now().Sub(loopStartTime).Seconds() * 1000.0
 		s.metricsReporter.TimeInMilliseconds("kinesumer.shard_worker.loop", loopDuration, s.MetricsTags(), 1.0)
+		loopStartTime = time.Now()
 	}
 }
 
