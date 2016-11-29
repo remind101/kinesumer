@@ -55,7 +55,10 @@ func (s *ShardWorker) TryGetShardIterator(iteratorType string, sequence string, 
 }
 
 func (s *ShardWorker) GetRecords(it string) ([]*kinesis.Record, string, int64, error) {
+	start := time.Now()
 	<-s.getRecordsThrottle
+	end := time.Now()
+	s.metricsReporter.TimeInMilliseconds("kinesumer.get_records.throttle_time", end.Sub(start).Seconds()*1000.0, map[string]string{"shard": aws.StringValue(s.shard.ShardId)}, 1.0)
 
 	s.metricsReporter.Count("kinesumer.get_records.requests", 1, map[string]string{"shard": aws.StringValue(s.shard.ShardId)}, 1.0)
 	resp, err := s.kinesis.GetRecords(&kinesis.GetRecordsInput{
@@ -75,6 +78,7 @@ func (s *ShardWorker) GetRecordsAndProcess(it, sequence string) (cont bool, next
 		if err != nil {
 			msg := fmt.Sprintf("GetRecords Failed with %d records and lag of %d on shard %s, should wait %d before retrying", len(records), lag, aws.StringValue(s.shard.ShardId), s.pollTime)
 			s.errHandler(NewError(EWarn, msg, err))
+			s.metricsReporter.Count("kinesumer.get_records.failed", 1, map[string]string{"shard": aws.StringValue(s.shard.ShardId)}, 1.0)
 			nextIt, err = s.GetShardIterator("AFTER_SEQUENCE_NUMBER", sequence, time.Time{})
 			if err != nil {
 				s.errHandler(NewError(EWarn, "GetShardIterator failed", err))
