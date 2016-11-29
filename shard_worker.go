@@ -58,9 +58,9 @@ func (s *ShardWorker) GetRecords(it string) ([]*kinesis.Record, string, int64, e
 	start := time.Now()
 	<-s.getRecordsThrottle
 	end := time.Now()
-	s.metricsReporter.TimeInMilliseconds("kinesumer.get_records.throttle_time", end.Sub(start).Seconds()*1000.0, map[string]string{"shard": aws.StringValue(s.shard.ShardId)}, 1.0)
+	s.metricsReporter.TimeInMilliseconds("kinesumer.get_records.throttle_time", end.Sub(start).Seconds()*1000.0, s.MetricsTags(), 1.0)
 
-	s.metricsReporter.Count("kinesumer.get_records.requests", 1, map[string]string{"shard": aws.StringValue(s.shard.ShardId)}, 1.0)
+	s.metricsReporter.Count("kinesumer.get_records.requests", 1, s.MetricsTags(), 1.0)
 	resp, err := s.kinesis.GetRecords(&kinesis.GetRecordsInput{
 		Limit:         &s.GetRecordsLimit,
 		ShardIterator: &it,
@@ -73,12 +73,12 @@ func (s *ShardWorker) GetRecords(it string) ([]*kinesis.Record, string, int64, e
 
 func (s *ShardWorker) GetRecordsAndProcess(it, sequence string) (cont bool, nextIt string, nextSeq string) {
 	records, nextIt, lag, err := s.GetRecords(it)
-	s.metricsReporter.Count("kinesumer.get_records.record_count", int64(len(records)), map[string]string{"shard": aws.StringValue(s.shard.ShardId)}, 1.0)
+	s.metricsReporter.Count("kinesumer.get_records.record_count", int64(len(records)), s.MetricsTags(), 1.0)
 	if err != nil || len(records) == 0 {
 		if err != nil {
 			msg := fmt.Sprintf("GetRecords Failed with %d records and lag of %d on shard %s, should wait %d before retrying", len(records), lag, aws.StringValue(s.shard.ShardId), s.pollTime)
 			s.errHandler(NewError(EWarn, msg, err))
-			s.metricsReporter.Count("kinesumer.get_records.failed", 1, map[string]string{"shard": aws.StringValue(s.shard.ShardId)}, 1.0)
+			s.metricsReporter.Count("kinesumer.get_records.failed", 1, s.MetricsTags(), 1.0)
 			nextIt, err = s.GetShardIterator("AFTER_SEQUENCE_NUMBER", sequence, time.Time{})
 			if err != nil {
 				s.errHandler(NewError(EWarn, "GetShardIterator failed", err))
@@ -93,7 +93,7 @@ func (s *ShardWorker) GetRecordsAndProcess(it, sequence string) (cont bool, next
 		// However, if our lag time behind the shard head is <= 3 seconds then there's probably
 		// no records.
 		if lag <= 3000 /* milliseconds */ {
-			s.metricsReporter.Count("kinesumer.get_records.polling", 1, map[string]string{"shard": aws.StringValue(s.shard.ShardId)}, 1.0)
+			s.metricsReporter.Count("kinesumer.get_records.polling", 1, s.MetricsTags(), 1.0)
 			select {
 			case <-time.NewTimer(time.Duration(s.pollTime) * time.Millisecond).C:
 			case <-s.stop:
@@ -146,6 +146,7 @@ func (s *ShardWorker) RunWorker() {
 		it = s.TryGetShardIterator("AFTER_SEQUENCE_NUMBER", sequence, time.Time{})
 	}
 
+	loopStartTime := time.Now()
 loop:
 	for {
 		if len(it) == 0 || end != nil && sequence == *end {
@@ -169,5 +170,11 @@ loop:
 				sequence = seq
 			}
 		}
+		loopDuration := time.Now().Sub(loopStartTime).Seconds() * 1000.0
+		s.metricsReporter.TimeInMilliseconds("kinesumer.shard_worker.loop", loopDuration, s.MetricsTags(), 1.0)
 	}
+}
+
+func (s *ShardWorker) MetricsTags() map[string]string {
+	return map[string]string{"shard": aws.StringValue(s.shard.ShardId)}
 }
