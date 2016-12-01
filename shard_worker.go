@@ -74,6 +74,7 @@ func (s *ShardWorker) GetRecords(it string) ([]*kinesis.Record, string, int64, e
 func (s *ShardWorker) GetRecordsAndProcess(it, sequence string) (cont bool, nextIt string, nextSeq string) {
 	records, nextIt, lag, err := s.GetRecords(it)
 	s.metricsReporter.Count("kinesumer.get_records.record_count", int64(len(records)), s.MetricsTags(), 1.0)
+	s.metricsReporter.Gauge("kinesumer.get_records.records_received", int64(len(records)), s.MetricsTags(), 1.0)
 	if err != nil || len(records) == 0 {
 		if err != nil {
 			msg := fmt.Sprintf("GetRecords Failed with %d records and lag of %d on shard %s, should wait %d before retrying", len(records), lag, aws.StringValue(s.shard.ShardId), s.pollTime)
