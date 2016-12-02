@@ -2,6 +2,7 @@ package kinesumer
 
 import (
 	"fmt"
+	"runtime"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -155,8 +156,8 @@ func (s *ShardWorker) RunWorker() {
 			select {
 			case <-watchDog:
 				lastWatchDogPet := time.Now()
-			case <-time.NewTimer(time.Duraction(1) * time.Second).C:
-				elapsedTime := time.Now() - lastWatchDogCheckin
+			case <-time.NewTimer(time.Duration(1) * time.Second).C:
+				elapsedTime := time.Now().sub(lastWatchDogCheckin)
 				if elapsedTime > s.provisioner.TTL() { // We missed our Heartbeat
 					stackDumpBuffer := make([]byte, 1<<20) // 1 MB stack dump is more than we could possibly need
 					stackLen := runtime.Stack(stackDumpBuffer, true)
