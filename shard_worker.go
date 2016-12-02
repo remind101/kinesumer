@@ -148,6 +148,26 @@ func (s *ShardWorker) RunWorker() {
 	}
 
 	loopStartTime := time.Now()
+	watchDog := make(chan Unit)
+	go func() {
+		lastWatchDogCheckin := time.Now()
+		for {
+			select {
+			case <-watchDog:
+				lastWatchDogPet := time.Now()
+			case <-time.NewTimer(time.Duraction(1) * time.Second).C:
+				elapsedTime := time.Now() - lastWatchDogCheckin
+				if elapsedTime > s.provisioner.TTL() { // We missed our Heartbeat
+					stackDumpBuffer := make([]byte, 1<<20) // 1 MB stack dump is more than we could possibly need
+					stackLen := runtime.Stack(stackDumpBuffer, true)
+					err := fmt.Errorf("*** goroutine dump...\n%s\n***", stackDumpBuffer[stackLen])
+					s.errHandler(NewError(EError, "Watchdog reached limit", err))
+					time.Sleep(s.provisioner.TTL()) // No need to double up a single heartbeat window
+					break
+				}
+			}
+		}
+	}()
 loop:
 	for {
 		if len(it) == 0 || end != nil && sequence == *end {
@@ -155,6 +175,7 @@ loop:
 			break loop
 		}
 
+		watchDog <- Unit{}
 		if err := s.provisioner.Heartbeat(aws.StringValue(s.shard.ShardId)); err != nil {
 			s.errHandler(NewError(EError, "Heartbeat failed", err))
 			break loop
