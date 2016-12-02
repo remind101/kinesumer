@@ -155,7 +155,7 @@ func (s *ShardWorker) RunWorker() {
 		for {
 			select {
 			case <-watchDog:
-				lastWatchDogPet := time.Now()
+				lastWatchDogCheckin = time.Now()
 			case <-time.NewTimer(time.Duration(1) * time.Second).C:
 				elapsedTime := time.Now().Sub(lastWatchDogCheckin)
 				if elapsedTime > s.provisioner.TTL() { // We missed our Heartbeat
