@@ -161,7 +161,7 @@ func (s *ShardWorker) RunWorker() {
 				if elapsedTime > s.provisioner.TTL() { // We missed our Heartbeat
 					stackDumpBuffer := make([]byte, 1<<20) // 1 MB stack dump is more than we could possibly need
 					stackLen := runtime.Stack(stackDumpBuffer, true)
-					err := fmt.Errorf("*** goroutine dump...\n%s\n***", stackDumpBuffer[stackLen])
+					err := fmt.Errorf("*** goroutine dump...\n%s\n***", stackDumpBuffer[:stackLen])
 					s.errHandler(NewError(EError, "Watchdog reached limit", err))
 					time.Sleep(s.provisioner.TTL()) // No need to double up a single heartbeat window
 					break
