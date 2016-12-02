@@ -157,7 +157,7 @@ func (s *ShardWorker) RunWorker() {
 			case <-watchDog:
 				lastWatchDogPet := time.Now()
 			case <-time.NewTimer(time.Duration(1) * time.Second).C:
-				elapsedTime := time.Now().sub(lastWatchDogCheckin)
+				elapsedTime := time.Now().Sub(lastWatchDogCheckin)
 				if elapsedTime > s.provisioner.TTL() { // We missed our Heartbeat
 					stackDumpBuffer := make([]byte, 1<<20) // 1 MB stack dump is more than we could possibly need
 					stackLen := runtime.Stack(stackDumpBuffer, true)
