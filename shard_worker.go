@@ -131,11 +131,12 @@ func (s *ShardWorker) RunWorker() {
 		}
 	}()
 	defer func() {
+		s.errHandler(NewError(EInfo, fmt.Sprintf("Stopping worker on shard: %s", aws.StringValue(s.shard.ShardId)), nil))
 		s.provisioner.Release(aws.StringValue(s.shard.ShardId))
 		s.stopped <- Unit{}
 	}()
 
-	s.errHandler(NewError(EInfo, "Starting worker", fmt.Errorf("shard: %s", aws.StringValue(s.shard.ShardId))))
+	s.errHandler(NewError(EInfo, fmt.Sprintf("Starting worker on shard: %s", aws.StringValue(s.shard.ShardId)), nil))
 	sequence := s.checkpointer.GetStartSequence(aws.StringValue(s.shard.ShardId))
 	end := s.shard.SequenceNumberRange.EndingSequenceNumber
 	var it string
@@ -150,12 +151,22 @@ func (s *ShardWorker) RunWorker() {
 
 	loopStartTime := time.Now()
 	watchDog := make(chan Unit)
+	stopWatchDog := make(chan Unit)
+	defer func() {
+		stopWatchDog <- Unit{}
+	}()
 	go func() {
+		msg := fmt.Sprintf("Starting watchdog on shard %s", aws.StringValue(s.shard.ShardId))
+		s.errHandler(NewError(EInfo, msg, nil))
 		lastWatchDogCheckin := time.Now()
 		for {
 			select {
 			case <-watchDog:
 				lastWatchDogCheckin = time.Now()
+			case <-stopWatchDog:
+				msg := fmt.Sprintf("Stopping watchdog on shard %s", aws.StringValue(s.shard.ShardId))
+				s.errHandler(NewError(EInfo, msg, nil))
+				return
 			case <-time.NewTimer(time.Duration(1) * time.Second).C:
 				elapsedTime := time.Now().Sub(lastWatchDogCheckin)
 				if elapsedTime > s.provisioner.TTL() { // We missed our Heartbeat
