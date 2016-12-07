@@ -9,7 +9,7 @@ import (
 // Reader provides an io.Reader implementation that can read data from a kinesis
 // stream.
 type Reader struct {
-	records <-chan k.Record
+	records <-chan []k.Record
 
 	// buffered data for the current record.
 	buf []byte
@@ -18,7 +18,7 @@ type Reader struct {
 }
 
 // NewReader returns a new Reader instance that reads data from records.
-func NewReader(records <-chan k.Record) *Reader {
+func NewReader(records <-chan []k.Record) *Reader {
 	return &Reader{records: records}
 }
 
@@ -32,15 +32,17 @@ func (r *Reader) Read(b []byte) (n int, err error) {
 		// on the record.
 		if len(r.buf) == 0 {
 			select {
-			case record, ok := <-r.records:
+			case records, ok := <-r.records:
 				if !ok {
 					// Channel is closed, return io.EOF.
 					err = io.EOF
 					return
 				}
 
-				r.buf = record.Data()
-				r.done = record.Done
+				for _, record := range records {
+					r.buf = record.Data() // ????????
+					r.done = record.Done
+				}
 			default:
 				// By convention, Read should return rather than wait
 				// for data to become available. If no data is available

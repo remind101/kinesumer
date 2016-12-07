@@ -15,10 +15,11 @@ type ShardWorker struct {
 	checkpointer           k.Checkpointer
 	stream                 string
 	pollTime               int
+	batchSize              int
 	sequence               string
 	stop                   <-chan Unit
 	stopped                chan<- Unit
-	c                      chan k.Record
+	c                      chan []k.Record
 	provisioner            k.Provisioner
 	errHandler             func(k.Error)
 	metricsReporter        k.MetricsReporter
@@ -102,15 +103,24 @@ func (s *ShardWorker) GetRecordsAndProcess(it, sequence string) (cont bool, next
 			}
 		}
 	} else {
-		for _, rec := range records {
-			s.c <- &Record{
-				data:               rec.Data,
-				partitionKey:       aws.StringValue(rec.PartitionKey),
-				sequenceNumber:     aws.StringValue(rec.SequenceNumber),
-				shardId:            aws.StringValue(s.shard.ShardId),
-				millisBehindLatest: lag,
-				checkpointC:        s.checkpointer.DoneC(),
+		for i := 0; i < len(records); i += s.batchSize {
+			end := i + s.batchSize
+			if end > len(records) {
+				end = len(records)
 			}
+			var recordsBatch []k.Record
+			for _, rec := range records[i:end] {
+				recordsBatch = append(recordsBatch, &Record{
+					data:               rec.Data,
+					partitionKey:       aws.StringValue(rec.PartitionKey),
+					sequenceNumber:     aws.StringValue(rec.SequenceNumber),
+					shardId:            aws.StringValue(s.shard.ShardId),
+					millisBehindLatest: lag,
+					checkpointC:        s.checkpointer.DoneC(),
+				})
+			}
+
+			s.c <- recordsBatch
 
 			if err := s.provisioner.Heartbeat(aws.StringValue(s.shard.ShardId)); err != nil {
 				s.errHandler(NewError(EError, "Heartbeat failed", err))

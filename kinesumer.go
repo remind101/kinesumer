@@ -30,7 +30,7 @@ type Kinesumer struct {
 	Provisioner  k.Provisioner
 	Stream       string
 	Options      *Options
-	records      chan k.Record
+	records      chan []k.Record
 	stop         chan Unit
 	stopped      chan Unit
 	nRunning     int
@@ -58,6 +58,9 @@ type Options struct {
 
 	// ShardIteratorTimestamp is used when DefaultIteratorType is "AT_TIMESTAMP"
 	ShardIteratorTimestamp time.Time
+
+	// BatchSize is how many records should be written to the channel at once
+	BatchSize int
 }
 
 var DefaultOptions = Options{
@@ -72,6 +75,7 @@ var DefaultOptions = Options{
 	MetricsReporter:         DefaultMetricsReporter(),
 	DefaultIteratorType:     "LATEST",
 	ShardAcquisitionTimeout: 90 * time.Second,
+	BatchSize:               1,
 }
 
 func NewDefault(stream string, duration time.Duration) (*Kinesumer, error) {
@@ -118,6 +122,10 @@ func New(kinesis k.Kinesis, checkpointer k.Checkpointer, provisioner k.Provision
 		return nil, NewError(ECrit, "Poll Time can't be zero", nil)
 	}
 
+	if opt.BatchSize == 0 {
+		return nil, NewError(ECrit, "Batch Size can't be zero", nil)
+	}
+
 	if opt.ErrHandler == nil {
 		opt.ErrHandler = DefaultErrHandler
 	}
@@ -137,7 +145,7 @@ func New(kinesis k.Kinesis, checkpointer k.Checkpointer, provisioner k.Provision
 		Provisioner:  provisioner,
 		Stream:       stream,
 		Options:      opt,
-		records:      make(chan k.Record, opt.GetRecordsLimit*2+10),
+		records:      make(chan []k.Record, (opt.GetRecordsLimit*2)/int64(opt.BatchSize)+10),
 		rand:         rand.New(randSource),
 	}, nil
 }
@@ -287,7 +295,7 @@ func (kin *Kinesumer) End() {
 	kin.Checkpointer.End()
 }
 
-func (kin *Kinesumer) Records() <-chan k.Record {
+func (kin *Kinesumer) Records() <-chan []k.Record {
 	return kin.records
 }
 
