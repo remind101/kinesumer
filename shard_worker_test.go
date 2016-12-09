@@ -15,13 +15,13 @@ import (
 )
 
 func makeTestShardWorker() (*ShardWorker, *mocks.Kinesis, *mocks.Checkpointer, *mocks.Provisioner,
-	chan Unit, chan Unit, chan k.Record) {
+	chan Unit, chan Unit, chan []k.Record) {
 	kin := new(mocks.Kinesis)
 	sssm := new(mocks.Checkpointer)
 	prov := new(mocks.Provisioner)
 	stop := make(chan Unit, 1)
 	stopped := make(chan Unit, 1)
-	c := make(chan k.Record, 100)
+	c := make(chan []k.Record, 100)
 
 	// No throttling in tests
 	getRecordsThrottle := make(chan time.Time)
@@ -110,7 +110,9 @@ func TestShardWorkerGetRecordsAndProcess(t *testing.T) {
 	doneC := make(chan k.Record)
 	sssm.On("DoneC").Return(doneC)
 	brk, nextIt, nextSeq := s.GetRecordsAndProcess("AAAA", "123")
-	rec := <-c
+	recs := <-c
+	assert.Equal(t, len(recs), 1)
+	rec := recs[0]
 	assert.Equal(t, record1.Data, rec.Data())
 	assert.False(t, brk)
 	assert.Equal(t, "AAAA", nextIt)
@@ -164,6 +166,8 @@ func TestShardWorkerRun(t *testing.T) {
 	}()
 	s.RunWorker()
 	<-stpd
-	rec := <-c
+	recs := <-c
+	assert.Equal(t, len(recs), 1)
+	rec := recs[0]
 	assert.Equal(t, record1.Data, rec.Data())
 }

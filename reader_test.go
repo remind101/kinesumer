@@ -10,7 +10,7 @@ import (
 )
 
 func TestReader_Read_NoData(t *testing.T) {
-	ch := make(chan k.Record)
+	ch := make(chan []k.Record)
 	r := NewReader(ch)
 
 	b := make([]byte, 1)
@@ -20,13 +20,13 @@ func TestReader_Read_NoData(t *testing.T) {
 }
 
 func TestReader_Read_SingleByte(t *testing.T) {
-	ch := make(chan k.Record, 1)
+	ch := make(chan []k.Record, 1)
 	checkpointC := make(chan k.Record, 1)
 	r := NewReader(ch)
 
 	// Check that we can read a single byte into a byte slice of size 1.
 	record := &Record{data: []byte{0x01}, checkpointC: checkpointC}
-	ch <- record
+	ch <- []k.Record{record}
 	b := make([]byte, 1)
 
 	n, err := r.Read(b)
@@ -37,14 +37,14 @@ func TestReader_Read_SingleByte(t *testing.T) {
 }
 
 func TestReader_Read_SmallBuffer(t *testing.T) {
-	ch := make(chan k.Record, 1)
+	ch := make(chan []k.Record, 1)
 	checkpointC := make(chan k.Record, 1)
 	r := NewReader(ch)
 
 	// Check that, if the record has more data than the size of the buffer
 	// we're provided, we buffer the data.
 	record := &Record{data: []byte{0x01, 0x02}, checkpointC: checkpointC}
-	ch <- record
+	ch <- []k.Record{record}
 	b := make([]byte, 1)
 
 	n, err := r.Read(b)
@@ -61,12 +61,12 @@ func TestReader_Read_SmallBuffer(t *testing.T) {
 }
 
 func TestReader_Read_LargeBuffer(t *testing.T) {
-	ch := make(chan k.Record, 2)
+	ch := make(chan []k.Record, 2)
 	checkpointC := make(chan k.Record, 2)
 	r := NewReader(ch)
 
 	record := &Record{data: []byte{0x01}, checkpointC: checkpointC}
-	ch <- record
+	ch <- []k.Record{record}
 	b := make([]byte, 2)
 
 	n, err := r.Read(b)
@@ -76,7 +76,7 @@ func TestReader_Read_LargeBuffer(t *testing.T) {
 	assertCheckpointed(t, checkpointC, record)
 
 	record = &Record{data: []byte{0x01}, checkpointC: checkpointC}
-	ch <- record
+	ch <- []k.Record{record}
 	n, err = r.Read(b)
 	assert.Nil(t, err)
 	assert.Equal(t, 1, n)
@@ -85,14 +85,14 @@ func TestReader_Read_LargeBuffer(t *testing.T) {
 }
 
 func TestReader_Read_MultipleRecords(t *testing.T) {
-	ch := make(chan k.Record, 2)
+	ch := make(chan []k.Record, 2)
 	checkpointC := make(chan k.Record, 2)
 	r := NewReader(ch)
 
 	record1 := &Record{data: []byte{0x01}, checkpointC: checkpointC}
-	ch <- record1
+	ch <- []k.Record{record1}
 	record2 := &Record{data: []byte{0x02}, checkpointC: checkpointC}
-	ch <- record2
+	ch <- []k.Record{record2}
 
 	b := make([]byte, 2)
 	n, err := r.Read(b)
@@ -105,12 +105,14 @@ func TestReader_Read_MultipleRecords(t *testing.T) {
 }
 
 func TestReader_Read_Copy(t *testing.T) {
-	ch := make(chan k.Record, 2)
+	ch := make(chan []k.Record, 2)
 	checkpointC := make(chan k.Record, 2)
 	r := NewReader(ch)
 
-	ch <- &Record{data: []byte{'a'}, checkpointC: checkpointC}
-	ch <- &Record{data: []byte{'b'}, checkpointC: checkpointC}
+	ch <- []k.Record{
+		&Record{data: []byte{'a'}, checkpointC: checkpointC},
+		&Record{data: []byte{'b'}, checkpointC: checkpointC},
+	}
 	close(ch)
 
 	b := new(bytes.Buffer)

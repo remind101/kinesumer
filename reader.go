@@ -39,10 +39,12 @@ func (r *Reader) Read(b []byte) (n int, err error) {
 					return
 				}
 
+				var newBuf = make([]byte, 0)
 				for _, record := range records {
-					r.buf = record.Data() // ????????
-					r.done = record.Done
+					newBuf = append(newBuf, record.Data()...)
 				}
+				r.buf = newBuf
+				r.done = records[len(records)-1].Done // Checkpoint last record
 			default:
 				// By convention, Read should return rather than wait
 				// for data to become available. If no data is available
