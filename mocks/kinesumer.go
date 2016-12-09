@@ -20,12 +20,12 @@ func (m *Kinesumer) Begin() (int, error) {
 func (m *Kinesumer) End() {
 	m.Called()
 }
-func (m *Kinesumer) Records() <-chan k.Record {
+func (m *Kinesumer) Records() <-chan []k.Record {
 	ret := m.Called()
 
-	var r0 <-chan k.Record
+	var r0 <-chan []k.Record
 	if ret.Get(0) != nil {
-		r0 = ret.Get(0).(<-chan k.Record)
+		r0 = ret.Get(0).(<-chan []k.Record)
 	}
 
 	return r0
